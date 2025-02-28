@@ -33,9 +33,6 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   image,
   handleNodeClick,
   handleDragMove,
-  handleDragStart,
-  handleDragEnd,
-  isDraggingNode,
   nodeMouseDown,
   nodeMouseUp
 }) => {
@@ -109,7 +106,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const arrowAngle = Math.PI / 18;
 
     return (
-      <Group key={`self-loop-${index}`}>
+      <Group key={`self-loop-${index}`} perfectDrawEnabled={false}>
         <Shape
           sceneFunc={(context: Konva.Context, shape: Konva.Shape) => {
             context.beginPath();
@@ -120,6 +117,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           }}
           stroke="black"
           strokeWidth={2}
+          perfectDrawEnabled={false}
         />
         <Arrow
           points={[
@@ -132,6 +130,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           fill="black"
           pointerLength={10}
           pointerWidth={10}
+          perfectDrawEnabled={false}
         />
         <Text
           x={loopX - label.length * 3 - 3}
@@ -141,6 +140,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           fill="black"
           align="center"
           verticalAlign="middle"
+          perfectDrawEnabled={false}
         />
       </Group>
     );
@@ -161,227 +161,248 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
       {showGrid && <Grid size={20} color="#9c9c9c" stageProps={stageProps} />}
 
       {/* Draw all transitions */}
-      {nodes.map((node) => {
-        return node.transitions.map((transition, i) => {
-          const targetNode = nodeMap[transition.targetid];
-          if (!targetNode) return null;
-
-          if (node.id === targetNode.id) {
-            // Self-referencing transition (loop)
-            const radius = 30;
-            const angle = -Math.PI / 4; // 45 degrees upward
-            const offsetX = Math.cos(angle) * radius;
-            const offsetY = Math.sin(angle) * radius;
-            const midX = node.x + offsetX * 2;
-            const midY = node.y + offsetY * 2;
-
-            const controlPoints = {
-              startX: node.x + offsetX,
-              startY: node.y + offsetY,
-              endX: node.x + offsetX,
-              endY: node.y + offsetY,
-              controlX: midX,
-              controlY: midY,
-            };
-
+      {nodes.map((node, index) => 
+        node.transitions.map((transition, tindex) => {
+          const target = nodeMap[transition.targetid];
+          if (!target) return null;
+          
+          const edge = { 
+            source: node, 
+            target: target, 
+            label: transition.label 
+          };
+          
+          const isReverse = nodes.some(
+            (n) => n.id === transition.targetid && 
+            n.transitions.some((t) => t.targetid === node.id)
+          );
+          
+          // Self-loop
+          if (edge.source.id === edge.target.id) {
+            return drawSelfLoop(edge.source.x, edge.source.y, edge.label, index);
+          } 
+          // Regular transition
+          else {
+            const points = isReverse
+              ? calculateCurvedArrowPoints(
+                  edge.source.x,
+                  edge.source.y,
+                  edge.target.x,
+                  edge.target.y,
+                  calculateCurveStrength(
+                    edge.source.x,
+                    edge.source.y,
+                    edge.target.x,
+                    edge.target.y
+                  ),
+                  20
+                )
+              : calculateArrowPoints(
+                  edge.source.x,
+                  edge.source.y,
+                  edge.target.x,
+                  edge.target.y,
+                  30
+                );
+            
+            const isHighlighted = highlightedTransition && 
+              highlightedTransition.d?.targetid === transition.targetid && 
+              highlightedTransition.d?.label === transition.label && 
+              highlightedTransition.target === edge.source.id;
+            
             return (
-              <Group key={`transition-${node.id}-${targetNode.id}-${i}`}>
-                <Shape
-                  sceneFunc={(context, shape) => {
-                    context.beginPath();
-                    context.moveTo(controlPoints.startX, controlPoints.startY);
-                    context.quadraticCurveTo(
-                      controlPoints.controlX,
-                      controlPoints.controlY,
-                      controlPoints.endX,
-                      controlPoints.endY
-                    );
-                    context.fillStrokeShape(shape);
-                  }}
-                  stroke={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  strokeWidth={2}
-                />
-                <Arrow
-                  points={[
-                    controlPoints.endX,
-                    controlPoints.endY,
-                    controlPoints.endX - 10,
-                    controlPoints.endY - 10,
-                  ]}
-                  pointerLength={7}
-                  pointerWidth={7}
-                  fill={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  stroke={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  strokeWidth={2}
-                />
-                <Text
-                  text={transition.label}
-                  x={controlPoints.controlX}
-                  y={controlPoints.controlY - 15}
-                  fontSize={16}
-                  fill={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  align="center"
-                />
-              </Group>
-            );
-          } else {
-            // Regular transition between different nodes
-            const points = calculateArrowPoints(
-              node.x,
-              node.y,
-              targetNode.x,
-              targetNode.y,
-              30 // radius
-            );
-
-            // Calculate midpoint for the label
-            const midX = (points.startX + points.endX) / 2;
-            const midY = (points.startY + points.endY) / 2;
-
-            // Add a little offset to avoid overlapping with the line
-            const angle = Math.atan2(
-              points.endY - points.startY,
-              points.endX - points.startX
-            );
-            const labelOffsetX = Math.sin(angle) * 15;
-            const labelOffsetY = -Math.cos(angle) * 15;
-
-            return (
-              <Group key={`transition-${node.id}-${targetNode.id}-${i}`}>
-                <Arrow
-                  points={[
-                    points.startX,
-                    points.startY,
-                    points.endX,
-                    points.endY,
-                  ]}
-                  pointerLength={7}
-                  pointerWidth={7}
-                  fill={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  stroke={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  strokeWidth={2}
-                />
-                <Text
-                  text={transition.label}
-                  x={midX + labelOffsetX}
-                  y={midY + labelOffsetY}
-                  fontSize={16}
-                  fill={
-                    highlightedTransition.d?.targetid === targetNode.id &&
-                    highlightedTransition.target === node.id
-                      ? "red"
-                      : "black"
-                  }
-                  align="center"
-                />
+              <Group key={`${node.id}-${transition.targetid}-${tindex}`} perfectDrawEnabled={false}>
+                {isReverse ? (
+                  <>
+                    <Shape
+                      sceneFunc={(context: Konva.Context, _shape: Konva.Shape) => {
+                        context.beginPath();
+                        context.moveTo(points.startX, points.startY);
+                        context.quadraticCurveTo(
+                          (points as CurvedArrowPoints).controlX, 
+                          (points as CurvedArrowPoints).controlY, 
+                          points.endX, 
+                          points.endY
+                        );
+                        context.stroke();
+                        context.strokeShape(_shape);
+                      }}
+                      stroke={isHighlighted ? "red" : "black"}
+                      strokeWidth={2}
+                      perfectDrawEnabled={false}
+                    />
+                    <Shape
+                      sceneFunc={(context: Konva.Context) => {
+                        context.beginPath();
+                        const arrowSize = 15;
+                        const angleToCenter = Math.atan2(
+                          edge.target.y - points.endY, 
+                          edge.target.x - points.endX
+                        );
+                        context.moveTo(points.endX, points.endY);
+                        context.lineTo(
+                          points.endX - arrowSize * Math.cos(angleToCenter + Math.PI / 6),
+                          points.endY - arrowSize * Math.sin(angleToCenter + Math.PI / 6)
+                        );
+                        context.lineTo(
+                          points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
+                          points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
+                        );
+                        context.closePath();
+                        context.fillStyle = isHighlighted ? "red" : "black";
+                        context.fill();
+                      }}
+                      perfectDrawEnabled={false}
+                    />
+                  </>
+                ) : (
+                  <Arrow
+                    points={[
+                      points.startX, 
+                      points.startY, 
+                      points.endX, 
+                      points.endY
+                    ]}
+                    stroke={isHighlighted ? "red" : "black"}
+                    fill={isHighlighted ? "red" : "black"}
+                    pointerLength={10}
+                    pointerWidth={10}
+                    perfectDrawEnabled={false}
+                  />
+                )}
+                
+                {/* Label Text */}
+                <Group perfectDrawEnabled={false}>
+                  <Rect
+                    x={isReverse 
+                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 3.2) - 3
+                      : (points.startX + points.endX - (edge.label.length * 6.5)) / 2 - 4
+                    }
+                    y={isReverse 
+                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 5 
+                      : (points.startY + points.endY) / 2 - 10
+                    }
+                    width={edge.label.length * 7 + 10}
+                    height={20}
+                    fill="white"
+                    opacity={0.8}
+                    cornerRadius={4}
+                    perfectDrawEnabled={false}
+                  />
+                  <Text
+                    x={isReverse 
+                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 6) / 2 
+                      : (points.startX + points.endX - (edge.label.length * 6)) / 2
+                    }
+                    y={isReverse 
+                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) 
+                      : (points.startY + points.endY - 15) / 2
+                    }
+                    text={edge.label}
+                    fontSize={16}
+                    fill="black"
+                    align="center"
+                    verticalAlign="middle"
+                    perfectDrawEnabled={false}
+                  />
+                </Group>
               </Group>
             );
           }
-        });
-      })}
+        })
+      )}
 
       {/* Draw all nodes */}
-      {nodes.map((node) => {
-        const isInitialNode = nodes.length > 0 && node.id === nodes[0].id;
-        const isSelectedNode = selectedNode && node.id === selectedNode.id;
-        const isCurrentNode = currNode && node.id === currNode.id;
-        const isFinalNode = finiteNodes.has(node.id);
-
-        return (
-          <Group key={`node-${node.id}`}>
-            {/* Initial node indicator (small arrow pointing to the initial state) */}
-            {isInitialNode && (
-              <Arrow
-                points={[node.x - 60, node.y, node.x - 30, node.y]}
-                pointerLength={10}
-                pointerWidth={10}
-                fill="black"
-                stroke="black"
-                strokeWidth={2}
-              />
-            )}
-
-            {/* Final state indicator (double circle for accepting states) */}
-            {isFinalNode && (
-              <Circle
-                x={node.x}
-                y={node.y}
-                radius={35}
-                stroke="black"
-                strokeWidth={2}
-              />
-            )}
-
-            {/* The main circle for the node */}
+      {nodes.map((node) => (
+        <Group 
+          key={node.id}
+          x={node.x}
+          y={node.y}
+          draggable
+          onTap={() => handleNodeClick(node)}
+          onClick={() => handleNodeClick(node)}
+          onMouseDown={nodeMouseDown}
+          onMouseUp={nodeMouseUp}
+          onDragMove={(e: KonvaEventObject<DragEvent>) => {
+            // Pass the Konva event directly to handleDragMove
+            handleDragMove(e, node.id);
+          }}
+          perfectDrawEnabled={false}
+          shadowForStrokeEnabled={false}
+          className="react-konva-drag"
+        >
+          {showQuestion && currNode && (currNode.id === node.id) && image && (
+            <Image 
+              image={image} 
+              alt="image" 
+              width={30} 
+              height={25} 
+              x={23} 
+              y={-35} 
+              perfectDrawEnabled={false}
+            />
+          )}
+          
+          {/* Start arrow for first state */}
+          {node.id === 'q0' && (
+            <Arrow
+              points={[-70, 0, -32, 0]}
+              stroke={currNode && currNode.id === node.id ? "red" : "black"}
+              fill={currNode && currNode.id === node.id ? "red" : "black"}
+              pointerLength={10}
+              pointerWidth={10}
+              perfectDrawEnabled={false}
+            />
+          )}
+          
+          {/* Node circle */}
+          <Circle
+            x={0}
+            y={0}
+            radius={30}
+            fill={
+              selectedNode 
+                ? (selectedNode.id === node.id ? "rgba(207, 207, 255, 1.0)" : "white") 
+                : (currNode && currNode.id === node.id 
+                    ? (finiteNodes.has(currNode.id) ? "#32CD32" : "red") 
+                    : "white")
+            }
+            stroke={
+              selectedNode 
+                ? (selectedNode.id === node.id ? "rgba(89, 89, 255, 1.0)" : "black") 
+                : "black"
+            }
+            strokeWidth={selectedNode ? (selectedNode.id === node.id ? 2 : 1) : 1}
+            perfectDrawEnabled={false}
+          />
+          
+          {/* Final state second circle */}
+          {finiteNodes.has(node.id) && (
             <Circle
-              x={node.x}
-              y={node.y}
-              radius={30}
-              fill={isCurrentNode ? "lightgreen" : "white"}
-              stroke={isSelectedNode ? "blue" : "black"}
-              strokeWidth={isSelectedNode ? 3 : 2}
-              draggable
-              onDragStart={(e) => {
-                if (handleDragStart) {
-                  handleDragStart(e, node.id);
-                } else if (nodeMouseDown) {
-                  nodeMouseDown();
-                }
-              }}
-              onDragMove={(e) => handleDragMove(e, node.id)}
-              onDragEnd={(e) => {
-                if (handleDragEnd) {
-                  handleDragEnd(e, node.id);
-                } else if (nodeMouseUp) {
-                  nodeMouseUp();
-                }
-              }}
-              onClick={() => handleNodeClick(node)}
-              onTap={() => handleNodeClick(node)}
+              x={0}
+              y={0}
+              radius={25}
+              stroke="black"
+              strokeWidth={1}
+              fill="transparent"
+              perfectDrawEnabled={false}
             />
-
-            {/* Node label (q0, q1, etc.) */}
-            <Text
-              text={node.id}
-              x={node.x - 10}
-              y={node.y - 8}
-              fontSize={16}
-              fill="black"
-              draggable={false}
-            />
-          </Group>
-        );
-      })}
+          )}
+          
+          {/* Node label */}
+          <Text
+            x={0 - node.id.length * 5 + 10}
+            y={-7}
+            text={node.id}
+            fill={currNode ? (currNode.id === node.id ? "white" : "black") : "black"}
+            fontSize={16}
+            align="center"
+            verticalAlign="middle"
+            offsetX={8}
+            perfectDrawEnabled={false}
+          />
+        </Group>
+      ))}
     </>
   );
 };

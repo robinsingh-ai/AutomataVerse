@@ -2,21 +2,57 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-/* Custom styles for smooth transitions */
-.smooth-transitions * {
-  transition: transform 0.1s ease-out;
-}
-
-/* Prevent blinking during drag operations */
+/* High-performance Canvas and Layer optimization */
 .konvajs-content {
   will-change: transform;
   transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000;
+  -webkit-perspective: 1000;
 }
 
-/* Optimize rendering for smoother performance */
+/* Avoid repaints during drag */
 .konvajs-content canvas {
+  position: absolute;
+  transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
+  will-change: transform, opacity;
+  image-rendering: optimizeSpeed;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Prevent browser default behaviors */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  outline: none;
+  touch-action: none;
+  -ms-touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth dragging */
+body {
+  overflow: hidden;
+}
+
+/* Add smooth dragging for react-konva */
+.react-konva-drag {
+  cursor: grabbing !important;
+}
+
+/* Add custom dragging styles */
+.dragging {
+  cursor: grabbing !important;
+}
+
+.draggable {
+  cursor: grab;
 }
