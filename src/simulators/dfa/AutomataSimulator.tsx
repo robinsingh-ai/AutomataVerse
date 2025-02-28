@@ -14,6 +14,23 @@ const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
   ssr: false,
 });
 
+// Wrapper component to contain the Stage and handle hydration properly
+const StageWrap = ({ children, ...props }: React.PropsWithChildren<any>) => {
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  if (!isMounted) {
+    return <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+      <div className="text-gray-500">Loading simulator...</div>
+    </div>;
+  }
+  
+  return children;
+};
+
 const AutomataSimulator: React.FC = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [nodeMap, setNodeMap] = useState<NodeMap>({});
@@ -38,8 +55,15 @@ const AutomataSimulator: React.FC = () => {
   const [isRunningStepWise, setIsRunningStepWise] = useState<boolean>(false);
   const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
   const [targetNode, setTargetNode] = useState<Node | null>(null);
+  // Server-client hydration check
+  const [isBrowser, setIsBrowser] = useState(false);
   
   const stageRef = useRef<Konva.Stage>(null);
+
+  // Handle browser-side initialization
+  useEffect(() => {
+    setIsBrowser(true);
+  }, []);
 
   // Load the question mark image
   useEffect(() => {
@@ -351,13 +375,13 @@ const AutomataSimulator: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-gray-50">
+    <div className="w-full h-full relative">
       <ControlPanel
         onAddNode={handleAddNode}
         onSetFinite={handleSetFinite}
         onRun={handleRun}
         onStep={onStepWiseClick}
-        onInputChange={(val) => setInputString(val)}
+        onInputChange={setInputString}
         inputString={inputString}
         validationResult={validationResult}
         selectedNode={selectedNode}
@@ -369,55 +393,57 @@ const AutomataSimulator: React.FC = () => {
         onReset={resetSimulation}
       />
       
-      {typeof window !== 'undefined' && (
-        <Stage
-          ref={stageRef}
-          width={window.innerWidth}
-          height={window.innerHeight}
-          className={`bg-white ${stageProps.draggable && stageDragging ? 'cursor-grabbing' : 'cursor-default'}`}
-          x={stageProps.x}
-          y={stageProps.y}
-          draggable={stageProps.draggable && stageDragging}
-          onClick={handleStageClick}
-          onDragMove={handleDragMoveScreen}
-          onWheel={handleWheel}
-          onPointerDown={(event) => { 
-            if (event.evt.button === 1) setIsStageDragging(true); 
-          }}
-          onPointerUp={(event) => { 
-            if (event.evt.button === 1) setIsStageDragging(false); 
-          }}
-          onTouchStart={() => setIsStageDragging(true)}
-          onTouchEnd={() => setIsStageDragging(false)}
-          scaleX={stageProps.scale}
-          scaleY={stageProps.scale}
-        >
-          <Layer>
-            <DynamicNodeCanvas
-              nodes={nodes}
-              showGrid={showGrid}
-              stageProps={stageProps}
-              nodeMap={nodeMap}
-              highlightedTransition={highlightedTransition}
-              selectedNode={selectedNode}
-              finiteNodes={finiteNodes}
-              currNode={currNode}
-              showQuestion={showQuestion}
-              image={image}
-              handleNodeClick={handleNodeClick}
-              handleDragMove={handleDragMove}
-              nodeMouseDown={nodeMouseDown}
-              nodeMouseUp={nodeMouseUp}
-            />
-          </Layer>
-        </Stage>
+      {isPopupOpen && targetNode && (
+        <InputPopup
+          node={targetNode}
+          onClose={handleInputClose}
+          onSubmit={handleSymbolInputSubmit}
+        />
       )}
       
-      <InputPopup
-        isOpen={isPopupOpen}
-        onClose={handleInputClose}
-        onSubmit={handleSymbolInputSubmit}
-      />
+      {isBrowser ? (
+        <StageWrap>
+          <Stage
+            ref={stageRef}
+            width={window.innerWidth}
+            height={window.innerHeight}
+            x={stageProps.x}
+            y={stageProps.y}
+            scaleX={stageProps.scale}
+            scaleY={stageProps.scale}
+            draggable={stageProps.draggable}
+            onWheel={handleWheel}
+            onClick={handleStageClick}
+            onMouseDown={nodeMouseDown}
+            onMouseUp={nodeMouseUp}
+            onDragMove={handleDragMoveScreen}
+            className="bg-white"
+          >
+            <Layer>
+              <DynamicNodeCanvas
+                nodes={nodes}
+                nodeMap={nodeMap}
+                showGrid={showGrid}
+                stageProps={stageProps}
+                highlightedTransition={highlightedTransition}
+                selectedNode={selectedNode}
+                finiteNodes={finiteNodes}
+                currNode={currNode}
+                showQuestion={showQuestion}
+                image={image}
+                handleNodeClick={handleNodeClick}
+                handleDragMove={handleDragMove}
+                nodeMouseDown={nodeMouseDown}
+                nodeMouseUp={nodeMouseUp}
+              />
+            </Layer>
+          </Stage>
+        </StageWrap>
+      ) : (
+        <div className="w-full h-screen flex items-center justify-center bg-gray-100">
+          <div className="text-lg text-gray-600">Initializing simulator...</div>
+        </div>
+      )}
     </div>
   );
 };
