@@ -50,7 +50,7 @@ export interface Transition {
   
   // Input Popup Props
   export interface InputPopupProps {
-    node: Node | null;
+    isOpen: boolean;
     onClose: () => void;
     onSubmit: (symbol: string) => void;
   }

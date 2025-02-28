@@ -1,12 +1,5 @@
-import '../app/globals.css'
-import { Inter } from 'next/font/google'
-
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata = {
-  title: 'AutomataVerse',
-  description: 'Advanced automata simulation platform',
-}
+import './globals.css'
+import { ThemeProvider } from './context/ThemeContext'
 
 export default function RootLayout({
   children,
@@ -15,8 +8,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        {children}
+      <body className="transition-colors duration-200">
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

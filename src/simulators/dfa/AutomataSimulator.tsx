@@ -1,37 +1,28 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Stage, Layer } from 'react-konva';
-import dynamic from 'next/dynamic';
+import { Stage, Layer, Image as KonvaImage } from 'react-konva';
+import { KonvaEventObject } from 'konva/lib/Node';
+import { useTheme } from '../../app/context/ThemeContext';
 import ControlPanel from './components/ControlPanel';
 import InputPopup from './components/InputPopup';
+import DFAInfoPanel from './components/DFAInfoPanel';
+import TestInputPanel from './components/TestInputPanel';
 import { Node, NodeMap, HighlightedTransition, StageProps } from './type';
 import Konva from 'konva';
-import { KonvaEventObject } from 'konva/lib/Node';
 
-// Dynamically import the NodeCanvas component to prevent SSR issues with Konva
+// Dynamically import the components to prevent SSR issues with Konva
+import dynamic from 'next/dynamic';
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
   ssr: false,
 });
 
-// Wrapper component to contain the Stage and handle hydration properly
-const StageWrap = ({ children, ...props }: React.PropsWithChildren<any>) => {
-  const [isMounted, setIsMounted] = useState(false);
-  
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
-  if (!isMounted) {
-    return <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-      <div className="text-gray-500">Loading simulator...</div>
-    </div>;
-  }
-  
-  return children;
-};
+const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
+  ssr: false,
+});
 
 const AutomataSimulator: React.FC = () => {
+  const { theme } = useTheme();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [nodeMap, setNodeMap] = useState<NodeMap>({});
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -45,7 +36,7 @@ const AutomataSimulator: React.FC = () => {
     scale: 1,
     draggable: true
   });
-  const [stageDragging, setIsStageDragging] = useState<boolean>(false);
+  const [stageDragging, setIsStageDragging] = useState<boolean>(true);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [highlightedTransition, setHighlightedTransition] = useState<HighlightedTransition>({});
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -55,14 +46,13 @@ const AutomataSimulator: React.FC = () => {
   const [isRunningStepWise, setIsRunningStepWise] = useState<boolean>(false);
   const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
   const [targetNode, setTargetNode] = useState<Node | null>(null);
-  // Server-client hydration check
-  const [isBrowser, setIsBrowser] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
   const stageRef = useRef<Konva.Stage>(null);
 
-  // Handle browser-side initialization
+  // Set isClient to true when component mounts to prevent hydration mismatch
   useEffect(() => {
-    setIsBrowser(true);
+    setIsClient(true);
   }, []);
 
   // Load the question mark image
@@ -144,18 +134,18 @@ const AutomataSimulator: React.FC = () => {
         prevNodes.map((n) =>
           n.id === selectedNode.id
             ? {
-              ...n,
-              transitions: index !== -1
-                ? n.transitions.map((t, i) =>
-                  i === index
-                    ? { ...t, label: `${t.label},${symbol}` }
-                    : t
-                )
-                : [
-                  ...n.transitions,
-                  { targetid: targetNode.id, label: symbol },
-                ],
-            }
+                ...n,
+                transitions: index !== -1
+                  ? n.transitions.map((t, i) =>
+                      i === index
+                        ? { ...t, label: `${t.label},${symbol}` }
+                        : t
+                    )
+                  : [
+                      ...n.transitions,
+                      { targetid: targetNode.id, label: symbol },
+                    ],
+              }
             : n
         )
       );
@@ -272,110 +262,135 @@ const AutomataSimulator: React.FC = () => {
     if (!inputString || !nodes.length || !currNode) return;
     
     const char = inputString[stepIndex];
-    let found = false;
-    let mcurrNode = currNode;
-
-    if (inputString) {
-      for (const transition of mcurrNode.transitions) {
+    
+    if (stepIndex < inputString.length) {
+      let found = false;
+      for (const transition of currNode.transitions) {
         if (transition.label.split(",").filter(num => num !== "").includes(char)) {
-          setHighlightedTransition({d: transition, target: mcurrNode.id});
+          setHighlightedTransition({d: transition, target: currNode.id});
           const nextNode = getNodeById(transition.targetid);
           if (nextNode) {
-            mcurrNode = nextNode;
             await sleep(200);
-            setCurrNode(mcurrNode);
+            setCurrNode(nextNode);
             found = true;
+            setStepIndex(prevStepIndex => prevStepIndex + 1);
             break;
           }
         }
       }
-    
       if (!found) {
-        setIsRunningStepWise(false);
         setShowQuestion(true);
-        setValidationResult(`No transition for '${char}' at ${mcurrNode.id}`);
+        setValidationResult(`No transition for '${char}' at ${currNode.id}`);
+        setIsRunningStepWise(false);
         return;
       }
-    }
-   
-    // Step wise finished
-    if (stepIndex === inputString.length - 1 || !inputString) {
-      setIsRunningStepWise(false);
-      if (finiteNodes.has(mcurrNode.id)) {
+    } else {
+      if (finiteNodes.has(currNode.id)) {
         setValidationResult("String is Valid");
       } else {
         setValidationResult("String is invalid");
       }
+      setIsRunningStepWise(false);
     }
-    setStepIndex(prevStepIndex => prevStepIndex + 1);
   };
 
   const onStepWiseClick = (): void => {
-    if (isRunning || !nodes.length) return;
+    if (isRunning || isRunningStepWise) return;
     
-    if (isRunningStepWise) {
-      handleStepWise();
-    } else {
-      resetSimulation();
-      setCurrNode(nodes[0]);
-      setIsRunningStepWise(true);
-    }
+    if (!nodes.length) return;
+    
+    setIsRunningStepWise(true);
+    setShowQuestion(false);
+    setSelectedNode(null);
+    setHighlightedTransition({});
+    setValidationResult(null);
+    setStepIndex(0);
+    setCurrNode(nodes[0]);
   };
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>): void => {
     e.evt.preventDefault();
-
+    
     const scaleBy = 1.1;
     const stage = e.target.getStage();
-    const oldScale = stageProps.scale;
-    const pointer = stage?.getPointerPosition();
-    if (!pointer) return;
-
-    // Calculate new scale
-    let newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-
-    // Adjust position to zoom into the pointer position
-    const mousePointTo = {
-      x: (pointer.x - stageProps.x) / oldScale,
-      y: (pointer.y - stageProps.y) / oldScale,
-    };
-
-    // Limits
-    newScale = Math.min(Math.max(newScale, 0.5), 4.0);
-
-    setStageProps((prev) => ({
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-      scale: newScale,
-      draggable: prev.draggable
-    }));
+    
+    if (stage) {
+      const oldScale = stageProps.scale;
+      const pointerPosition = stage.getPointerPosition();
+      
+      if (pointerPosition) {
+        const mousePointTo = {
+          x: (pointerPosition.x - stageProps.x) / oldScale,
+          y: (pointerPosition.y - stageProps.y) / oldScale,
+        };
+        
+        const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+        
+        setStageProps({
+          ...stageProps,
+          scale: newScale,
+          x: pointerPosition.x - mousePointTo.x * newScale,
+          y: pointerPosition.y - mousePointTo.y * newScale,
+        });
+      }
+    }
   };
 
   const handleDragMoveScreen = (e: Konva.KonvaEventObject<DragEvent>): void => {
-    const stage = e.target.getStage();
-    setStageProps((prev) => ({
-      ...prev,
-      x: stage?.x() || prev.x,
-      y: stage?.y() || prev.y,
+    setStageProps(prev => ({ 
+      ...prev, 
+      x: e.target.x(), 
+      y: e.target.y() 
     }));
   };
-
+  
   const nodeMouseDown = (): void => {
-    setStageProps((prev) => ({
+    // When we start dragging a node, disable stage dragging
+    setStageProps(prev => ({
       ...prev,
       draggable: false
     }));
   };
-  
+
   const nodeMouseUp = (): void => {
-    setStageProps((prev) => ({
+    // When we finish dragging a node, re-enable stage dragging
+    setStageProps(prev => ({
       ...prev,
       draggable: true
     }));
   };
 
+  const handleTestInput = (input: string, speed = 300): void => {
+    setInputString(input);
+    setTimeout(() => {
+      handleRun();
+    }, 100);
+  };
+
+  // Calculate all input symbols used in the transitions
+  const getInputSymbols = (): string[] => {
+    const symbolsSet = new Set<string>();
+    nodes.forEach(node => {
+      node.transitions.forEach(transition => {
+        transition.label.split(',').forEach(symbol => {
+          if (symbol.trim()) {
+            symbolsSet.add(symbol.trim());
+          }
+        });
+      });
+    });
+    return Array.from(symbolsSet).sort();
+  };
+
+  if (!isClient) {
+    return null; // Return null on server side to prevent hydration mismatch
+  }
+
   return (
-    <div className="w-full h-full relative">
+    <div 
+      className={`w-full h-full overflow-hidden 
+        ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
+    >
       <ControlPanel
         onAddNode={handleAddNode}
         onSetFinite={handleSetFinite}
@@ -393,57 +408,77 @@ const AutomataSimulator: React.FC = () => {
         onReset={resetSimulation}
       />
       
-      {isPopupOpen && targetNode && (
+      <DFAInfoPanel 
+        states={nodes.map(node => node.id)} 
+        initialState={nodes.length > 0 ? nodes[0].id : null}
+        finalStates={Array.from(finiteNodes)}
+        inputSymbols={getInputSymbols()}
+      />
+      
+      <TestInputPanel onTestInput={handleTestInput} />
+      
+      {isPopupOpen && (
         <InputPopup
-          node={targetNode}
-          onClose={handleInputClose}
+          isOpen={isPopupOpen}
           onSubmit={handleSymbolInputSubmit}
+          onClose={handleInputClose}
         />
       )}
       
-      {isBrowser ? (
-        <StageWrap>
-          <Stage
-            ref={stageRef}
-            width={window.innerWidth}
-            height={window.innerHeight}
-            x={stageProps.x}
-            y={stageProps.y}
-            scaleX={stageProps.scale}
-            scaleY={stageProps.scale}
-            draggable={stageProps.draggable}
-            onWheel={handleWheel}
-            onClick={handleStageClick}
-            onMouseDown={nodeMouseDown}
-            onMouseUp={nodeMouseUp}
-            onDragMove={handleDragMoveScreen}
-            className="bg-white"
-          >
-            <Layer>
-              <DynamicNodeCanvas
-                nodes={nodes}
-                nodeMap={nodeMap}
-                showGrid={showGrid}
-                stageProps={stageProps}
-                highlightedTransition={highlightedTransition}
-                selectedNode={selectedNode}
-                finiteNodes={finiteNodes}
-                currNode={currNode}
-                showQuestion={showQuestion}
-                image={image}
-                handleNodeClick={handleNodeClick}
-                handleDragMove={handleDragMove}
-                nodeMouseDown={nodeMouseDown}
-                nodeMouseUp={nodeMouseUp}
-              />
-            </Layer>
-          </Stage>
-        </StageWrap>
-      ) : (
-        <div className="w-full h-screen flex items-center justify-center bg-gray-100">
-          <div className="text-lg text-gray-600">Initializing simulator...</div>
-        </div>
-      )}
+      <Stage
+        width={window.innerWidth}
+        height={window.innerHeight}
+        ref={stageRef}
+        onWheel={handleWheel}
+        draggable={stageProps.draggable}
+        onDragMove={handleDragMoveScreen}
+        onClick={handleStageClick}
+        x={stageProps.x}
+        y={stageProps.y}
+        scaleX={stageProps.scale}
+        scaleY={stageProps.scale}
+        className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'} ${stageProps.draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+      >
+        <Layer>
+          {showGrid && (
+            <DynamicGridCanvas
+              size={20}
+              color={theme === 'dark' ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}
+              stageProps={stageProps}
+            />
+          )}
+        </Layer>
+        
+        <Layer>
+          {showQuestion && image && (
+            <KonvaImage
+              image={image}
+              x={window.innerWidth / 2 - 50}
+              y={window.innerHeight / 2 - 50}
+              width={100}
+              height={100}
+              opacity={0.7}
+            />
+          )}
+          
+          <DynamicNodeCanvas
+            nodes={nodes}
+            showGrid={showGrid}
+            stageProps={stageProps}
+            nodeMap={nodeMap}
+            highlightedTransition={highlightedTransition}
+            selectedNode={selectedNode}
+            finiteNodes={finiteNodes}
+            currNode={currNode}
+            showQuestion={showQuestion}
+            image={image}
+            handleNodeClick={handleNodeClick}
+            handleDragMove={handleDragMove}
+            nodeMouseDown={nodeMouseDown}
+            nodeMouseUp={nodeMouseUp}
+          />
+        </Layer>
+      </Stage>
     </div>
   );
 };
