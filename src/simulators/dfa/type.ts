@@ -76,6 +76,9 @@ export interface Transition {
     image: HTMLImageElement | null;
     handleNodeClick: (node: Node) => void;
     handleDragMove: (e: KonvaEventObject<DragEvent>, nodeId: string) => void;
-    nodeMouseDown: () => void;
-    nodeMouseUp: () => void;
+    handleDragStart?: (e: KonvaEventObject<DragEvent>, nodeId: string) => void;
+    handleDragEnd?: (e: KonvaEventObject<DragEvent>, nodeId: string) => void;
+    isDraggingNode?: boolean;
+    nodeMouseDown?: () => void;
+    nodeMouseUp?: () => void;
   }

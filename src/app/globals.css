@@ -1,3 +1,22 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+
+/* Custom styles for smooth transitions */
+.smooth-transitions * {
+  transition: transform 0.1s ease-out;
+}
+
+/* Prevent blinking during drag operations */
+.konvajs-content {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Optimize rendering for smoother performance */
+.konvajs-content canvas {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}

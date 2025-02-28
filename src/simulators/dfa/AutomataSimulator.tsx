@@ -47,8 +47,15 @@ const AutomataSimulator: React.FC = () => {
   const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
   const [targetNode, setTargetNode] = useState<Node | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isDraggingNode, setIsDraggingNode] = useState(false);
   
   const stageRef = useRef<Konva.Stage>(null);
+  const nodesRef = useRef<Node[]>(nodes);
+
+  // Update the ref when nodes change
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
 
   // Set isClient to true when component mounts to prevent hydration mismatch
   useEffect(() => {
@@ -107,15 +114,51 @@ const AutomataSimulator: React.FC = () => {
     }
   };
 
+  // Start node drag
+  const handleDragStart = (e: KonvaEventObject<DragEvent>, nodeId: string): void => {
+    setIsDraggingNode(true);
+    // When we start dragging a node, disable stage dragging
+    setStageProps(prev => ({
+      ...prev,
+      draggable: false
+    }));
+  };
+
+  // During node drag
   const handleDragMove = (e: KonvaEventObject<DragEvent>, nodeId: string): void => {
+    if (!isDraggingNode) return;
+    
     // In Konva, we can access the position directly from the KonvaNode
     const konvaNode = e.target;
     const x = konvaNode.x();
     const y = konvaNode.y();
     
-    setNodes((prev) =>
-      prev.map((n) => (n.id === nodeId ? { ...n, x, y } : n))
+    // Update our local node reference for smoother updates
+    const updatedNodes = nodesRef.current.map(n => 
+      n.id === nodeId ? { ...n, x, y } : n
     );
+    nodesRef.current = updatedNodes;
+    
+    // We're not updating state directly during drag moves for better performance
+    // Only the ref is updated, which doesn't trigger re-renders
+  };
+
+  // End node drag
+  const handleDragEnd = (e: KonvaEventObject<DragEvent>, nodeId: string): void => {
+    setIsDraggingNode(false);
+    
+    // When drag is complete, update the actual state with the final position
+    const konvaNode = e.target;
+    const x = konvaNode.x();
+    const y = konvaNode.y();
+    
+    setNodes(nodesRef.current);
+    
+    // Re-enable stage dragging
+    setStageProps(prev => ({
+      ...prev,
+      draggable: true
+    }));
   };
 
   const handleSymbolInputSubmit = (symbol: string): void => {
@@ -343,22 +386,6 @@ const AutomataSimulator: React.FC = () => {
       y: e.target.y() 
     }));
   };
-  
-  const nodeMouseDown = (): void => {
-    // When we start dragging a node, disable stage dragging
-    setStageProps(prev => ({
-      ...prev,
-      draggable: false
-    }));
-  };
-
-  const nodeMouseUp = (): void => {
-    // When we finish dragging a node, re-enable stage dragging
-    setStageProps(prev => ({
-      ...prev,
-      draggable: true
-    }));
-  };
 
   const handleTestInput = (input: string, speed = 300): void => {
     setInputString(input);
@@ -390,6 +417,9 @@ const AutomataSimulator: React.FC = () => {
     <div 
       className={`w-full h-full overflow-hidden 
         ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
+      style={{
+        cursor: isDraggingNode ? 'grabbing' : stageProps.draggable ? 'grab' : 'default'
+      }}
     >
       <ControlPanel
         onAddNode={handleAddNode}
@@ -437,7 +467,7 @@ const AutomataSimulator: React.FC = () => {
         y={stageProps.y}
         scaleX={stageProps.scale}
         scaleY={stageProps.scale}
-        className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'} ${stageProps.draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+        className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'} smooth-transitions`}
       >
         <Layer>
           {showGrid && (
@@ -462,7 +492,7 @@ const AutomataSimulator: React.FC = () => {
           )}
           
           <DynamicNodeCanvas
-            nodes={nodes}
+            nodes={isDraggingNode ? nodesRef.current : nodes}
             showGrid={showGrid}
             stageProps={stageProps}
             nodeMap={nodeMap}
@@ -474,8 +504,9 @@ const AutomataSimulator: React.FC = () => {
             image={image}
             handleNodeClick={handleNodeClick}
             handleDragMove={handleDragMove}
-            nodeMouseDown={nodeMouseDown}
-            nodeMouseUp={nodeMouseUp}
+            handleDragStart={handleDragStart}
+            handleDragEnd={handleDragEnd}
+            isDraggingNode={isDraggingNode}
           />
         </Layer>
       </Stage>
