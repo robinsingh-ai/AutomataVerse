@@ -93,7 +93,21 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     return Math.max(6, distance / 60);
   };
 
-  const drawSelfLoop = (x: number, y: number, label: string, index: number, isHighlighted: boolean) => {
+  // Format for multi-transition labels
+  const formatMultiTransitionLabel = (sourceId: string, targetId: string): string[] => {
+    // Get all transitions between these two nodes
+    const source = nodeMap[sourceId];
+    if (!source) return [];
+    
+    const transitions = source.transitions.filter(t => t.targetid === targetId);
+    if (transitions.length === 0) return [];
+    
+    // Return all transition labels
+    return transitions.map(t => t.label);
+  };
+
+  // Updated self-loop drawing to handle multiple transitions
+  const drawSelfLoop = (x: number, y: number, nodeId: string, index: number, isHighlighted: boolean) => {
     const radius = 20;
     const loopRadius = 20;
     const angleOffset = Math.PI;
@@ -103,6 +117,21 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const loopY = y - radius - loopRadius;
     const arrowAngle = Math.PI / 18;
 
+    // Get all self-loop transitions for this node
+    const node = nodeMap[nodeId];
+    if (!node) return null;
+    
+    const selfTransitions = node.transitions.filter(t => t.targetid === nodeId);
+    if (selfTransitions.length === 0) return null;
+    
+    // Format each transition label
+    const labels = selfTransitions.map(t => t.label);
+    
+    // Calculate dimensions for the label background
+    const lineHeight = 16;
+    const totalHeight = labels.length * lineHeight;
+    const maxLabelWidth = Math.max(...labels.map(label => label.length * 6)) + 10;
+    
     return (
       <Group key={`self-loop-${index}`} perfectDrawEnabled={false}>
         <Shape
@@ -130,16 +159,33 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           pointerWidth={10}
           perfectDrawEnabled={false}
         />
-        <Text
-          x={loopX - label.length * 3 - 3}
-          y={loopY - loopRadius - 18}
-          text={label}
-          fontSize={16}
-          fill="black"
-          align="center"
-          verticalAlign="middle"
+        
+        {/* Background for labels */}
+        <Rect
+          x={loopX - maxLabelWidth / 2}
+          y={loopY - loopRadius - totalHeight - 10}
+          width={maxLabelWidth}
+          height={totalHeight + 6}
+          fill="white"
+          opacity={0.9}
+          cornerRadius={4}
           perfectDrawEnabled={false}
         />
+        
+        {/* Render each transition label */}
+        {labels.map((label, i) => (
+          <Text
+            key={i}
+            x={loopX - label.length * 3}
+            y={loopY - loopRadius - totalHeight + i * lineHeight - 5}
+            text={label}
+            fontSize={14}
+            fill="black"
+            align="center"
+            verticalAlign="middle"
+            perfectDrawEnabled={false}
+          />
+        ))}
       </Group>
     );
   };
@@ -165,10 +211,22 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
       {showGrid && <Grid size={20} color="#9c9c9c" stageProps={stageProps} />}
 
       {/* Draw all transitions */}
-      {nodes.map((node, index) => 
-        node.transitions.map((transition, tindex) => {
+      {nodes.map((node, index) => {
+        // Group transitions by target for cleaner rendering
+        const processedTargets = new Set<string>();
+        
+        return node.transitions.map((transition, tindex) => {
           const target = nodeMap[transition.targetid];
           if (!target) return null;
+          
+          // If we already processed this target for this node, skip
+          // (we'll handle all transitions to the same target together)
+          if (transition.targetid !== node.id && processedTargets.has(transition.targetid)) {
+            return null;
+          }
+          
+          // Mark this target as processed
+          processedTargets.add(transition.targetid);
           
           const edge = { 
             source: node, 
@@ -181,12 +239,12 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
             n.transitions.some((t) => t.targetid === node.id)
           );
           
-          // Check if this transition is highlighted (for NFA, multiple can be)
+          // Check if this transition is highlighted
           const isHighlighted = isTransitionHighlighted(edge.source.id, edge.target.id, edge.label);
           
           // Self-loop
           if (edge.source.id === edge.target.id) {
-            return drawSelfLoop(edge.source.x, edge.source.y, edge.label, index, isHighlighted);
+            return drawSelfLoop(edge.source.x, edge.source.y, edge.source.id, index, isHighlighted);
           } 
           // Regular transition
           else {
@@ -211,6 +269,9 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                   edge.target.y,
                   30
                 );
+            
+            // Get all labels for transitions between these nodes
+            const transitionLabels = formatMultiTransitionLabel(edge.source.id, edge.target.id);
             
             return (
               <Group key={`${node.id}-${transition.targetid}-${tindex}`} perfectDrawEnabled={false}>
@@ -275,44 +336,63 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                 
                 {/* Label Text */}
                 <Group perfectDrawEnabled={false}>
-                  <Rect
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 3.2) - 3
-                      : (points.startX + points.endX - (edge.label.length * 6.5)) / 2 - 4
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 5 
-                      : (points.startY + points.endY) / 2 - 10
-                    }
-                    width={edge.label.length * 7 + 10}
-                    height={20}
-                    fill="white"
-                    opacity={0.8}
-                    cornerRadius={4}
-                    perfectDrawEnabled={false}
-                  />
-                  <Text
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 6) / 2 
-                      : (points.startX + points.endX - (edge.label.length * 6)) / 2
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) 
-                      : (points.startY + points.endY - 15) / 2
-                    }
-                    text={edge.label}
-                    fontSize={16}
-                    fill="black"
-                    align="center"
-                    verticalAlign="middle"
-                    perfectDrawEnabled={false}
-                  />
+                  {(() => {
+                    // Calculate dimensions for the labels
+                    const lineHeight = 18;
+                    const totalHeight = transitionLabels.length * lineHeight;
+                    
+                    // Find the longest label to size the background properly
+                    const maxLength = Math.max(...transitionLabels.map(lbl => lbl.length));
+                    const boxWidth = maxLength * 7 + 10;
+                    
+                    // Calculate base position for the label
+                    const baseX = isReverse 
+                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - 
+                        (maxLength * 3.2) - 3
+                      : (points.startX + points.endX - (maxLength * 6.5)) / 2 - 4;
+                    
+                    const baseY = isReverse 
+                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 
+                        totalHeight / 2
+                      : (points.startY + points.endY) / 2 - totalHeight / 2;
+                    
+                    return (
+                      <>
+                        {/* Background */}
+                        <Rect
+                          x={baseX}
+                          y={baseY - 5}
+                          width={boxWidth}
+                          height={totalHeight + 10}
+                          fill="white"
+                          opacity={0.9}
+                          cornerRadius={4}
+                          perfectDrawEnabled={false}
+                        />
+                        
+                        {/* Render each label */}
+                        {transitionLabels.map((label, i) => (
+                          <Text
+                            key={i}
+                            x={baseX + boxWidth / 2 - (label.length * 5) / 2}
+                            y={baseY + i * lineHeight}
+                            text={label}
+                            fontSize={14}
+                            fill="black"
+                            align="center"
+                            verticalAlign="middle"
+                            perfectDrawEnabled={false}
+                          />
+                        ))}
+                      </>
+                    );
+                  })()}
                 </Group>
               </Group>
             );
           }
-        })
-      )}
+        });
+      })}
 
       {/* Draw all nodes */}
       {nodes.map((node) => (

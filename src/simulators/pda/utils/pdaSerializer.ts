@@ -158,7 +158,7 @@ export const canTakeTransition = (
   currentSymbol: string | null,
   stackTop: string | null
 ): boolean => {
-  const [inputSymbol, popSymbol, pushSymbol] = transition.split(',');
+  const [inputSymbol, popSymbol] = transition.split(',');
   
   // Check if the input symbol matches (or is epsilon)
   const inputMatches = inputSymbol === 'ε' || inputSymbol === '' || inputSymbol === currentSymbol;
@@ -231,7 +231,7 @@ export const getNextConfigurations = (
     
     if (state) {
       for (const transition of state.transitions) {
-        const [inputSymbol, popSymbol, pushSymbol] = transition.label.split(',');
+        const [inputSymbol] = transition.label.split(',');
         
         // If we're only looking for epsilon transitions, skip non-epsilon transitions
         if (epsilonOnly && inputSymbol !== 'ε') {

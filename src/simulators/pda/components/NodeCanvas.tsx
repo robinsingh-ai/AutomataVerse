@@ -251,7 +251,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           const isHighlighted = isTransitionHighlighted(edge.source.id, edge.target.id, edge.label);
           
           // Format label for display
-          const displayLabel = formatMultiTransitionLabel(edge.source.id, edge.target.id);
+          // const displayLabel = formatMultiTransitionLabel(edge.source.id, edge.target.id);
           
           // Self-loop
           if (edge.source.id === edge.target.id) {
