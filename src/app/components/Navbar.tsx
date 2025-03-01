@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type NavbarProps = {
   onThemeChange: (theme: 'light' | 'dark') => void;
@@ -16,10 +17,24 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex-shrink-0 flex items-center">
-            <span className="font-bold text-2xl tracking-tight">
-              <span className="text-blue-600">Automata</span>
-              <span className={currentTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'}>Verse</span>
-            </span>
+            <Link href="/" className="flex items-center">
+              
+              <div className="w-auto relative">
+                <Image 
+                  src="/logo/png/3.png" 
+                  alt="AutomataVerse" 
+                  width={80} 
+                  height={20}
+                  className={`${currentTheme === 'dark' ? 'brightness-200' : ''} object-contain`}
+                  priority
+                />
+                
+              </div>
+              <span className="text-xl font-medium mr-2">
+                <span style={{ color: '#70DAC2' }}>Automata</span>
+                <span className={`font-bold ${currentTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Verse</span>
+              </span>
+            </Link>
           </div>
           
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-8">
