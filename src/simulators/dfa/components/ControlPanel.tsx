@@ -20,7 +20,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onToggleGrid,
   stepIndex,
   onReset,
-  onLoadJson
+  onLoadJson,
+  onValidate
 }) => {
   const { theme } = useTheme();
   
@@ -61,6 +62,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             }`}
           >
             Load DFA from JSON
+          </button>
+          
+          <button
+            onClick={onValidate}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+            }`}
+          >
+            Validate DFA
           </button>
         </div>
         

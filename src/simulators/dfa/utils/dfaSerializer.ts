@@ -18,6 +18,117 @@ export const serializeDFA = (nodes: Node[], finalStates: Set<string>): string =>
 };
 
 /**
+ * Validates if a DFA meets all formal requirements
+ * Returns an error message if invalid, or null if valid
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errorMessage?: string;
+}
+
+export const validateDFA = (nodes: Node[], finalStates: Set<string>): ValidationResult => {
+  // 1. Check if there are any states defined
+  if (nodes.length === 0) {
+    return {
+      isValid: false,
+      errorMessage: "Error: DFA must have at least one state"
+    };
+  }
+
+  // 2. Check if there's at least one accepting state
+  if (finalStates.size === 0) {
+    return {
+      isValid: false,
+      errorMessage: "Error: DFA must have at least one accepting state"
+    };
+  }
+
+  // 3. Create a set of all state IDs for validation
+  const stateIds = new Set(nodes.map(node => node.id));
+  
+  // 4. Check if all final states exist in the set of states
+  for (const finalState of finalStates) {
+    if (!stateIds.has(finalState)) {
+      return {
+        isValid: false,
+        errorMessage: `Error: Final state '${finalState}' is not defined in the set of states`
+      };
+    }
+  }
+
+  // 5. Collect all input symbols used in transitions
+  const alphabet = new Set<string>();
+  nodes.forEach(node => {
+    node.transitions.forEach(transition => {
+      transition.label.split(',').forEach(symbol => {
+        if (symbol.trim()) {
+          alphabet.add(symbol.trim());
+        }
+      });
+    });
+  });
+
+  // 6. Check transition function for each state and input symbol
+  const transitionMap = new Map<string, Set<string>>();
+  
+  for (const node of nodes) {
+    // Check if all target states exist
+    for (const transition of node.transitions) {
+      if (!stateIds.has(transition.targetid)) {
+        return {
+          isValid: false,
+          errorMessage: `Error: Transition from '${node.id}' points to non-existent state '${transition.targetid}'`
+        };
+      }
+      
+      // Check for determinism - each (state, symbol) pair should have exactly one target
+      const symbols = transition.label.split(',').filter(s => s.trim());
+      for (const symbol of symbols) {
+        const key = `${node.id},${symbol}`;
+        if (!transitionMap.has(key)) {
+          transitionMap.set(key, new Set<string>());
+        }
+        transitionMap.get(key)?.add(transition.targetid);
+      }
+    }
+  }
+  
+  // Check if any (state, symbol) pair leads to multiple states
+  for (const [key, targets] of transitionMap.entries()) {
+    if (targets.size > 1) {
+      const [state, symbol] = key.split(',');
+      return {
+        isValid: false,
+        errorMessage: `Error: Non-deterministic transition detected - state '${state}' has multiple transitions for input '${symbol}'`
+      };
+    }
+  }
+  
+  // 7. Check if all states have transitions for all symbols in the alphabet
+  for (const node of nodes) {
+    const stateTransitions = new Set<string>();
+    node.transitions.forEach(transition => {
+      transition.label.split(',').forEach(symbol => {
+        if (symbol.trim()) {
+          stateTransitions.add(symbol.trim());
+        }
+      });
+    });
+    
+    for (const symbol of alphabet) {
+      if (!stateTransitions.has(symbol)) {
+        return {
+          isValid: false,
+          errorMessage: `Error: Missing transition - state '${node.id}' has no transition for input '${symbol}'`
+        };
+      }
+    }
+  }
+  
+  return { isValid: true };
+};
+
+/**
  * Deserializes a JSON string to DFA state
  */
 export const deserializeDFA = (json: string): SerializedDFA | null => {

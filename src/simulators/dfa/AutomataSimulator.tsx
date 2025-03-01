@@ -11,7 +11,7 @@ import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
 import DFAInfoPanel from './components/DFAInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
-import { deserializeDFA, SerializedDFA, serializeDFA, encodeDFAForURL } from './utils/dfaSerializer';
+import { deserializeDFA, SerializedDFA, serializeDFA, encodeDFAForURL, validateDFA } from './utils/dfaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
 
@@ -102,10 +102,16 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     try {
       const parsedDFA = deserializeDFA(jsonString);
       if (parsedDFA) {
-        setNodes(parsedDFA.nodes);
-        
-        // Convert finalStates array to Set
+        // Validate the DFA before loading
         const finalStatesSet = new Set<string>(parsedDFA.finalStates);
+        const validationResult = validateDFA(parsedDFA.nodes, finalStatesSet);
+        
+        if (!validationResult.isValid) {
+          setValidationResult(validationResult.errorMessage || 'Invalid DFA');
+          return;
+        }
+        
+        setNodes(parsedDFA.nodes);
         setFiniteNodes(finalStatesSet);
         
         // Reset simulation state
@@ -192,26 +198,56 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     }
 
     if (selectedNode) {
-      const index = selectedNode.transitions.findIndex(item => item.targetid === targetNode.id);
-      setNodes((prevNodes) =>
-        prevNodes.map((n) =>
-          n.id === selectedNode.id
-            ? {
-              ...n,
-              transitions: index !== -1
-                ? n.transitions.map((t, i) =>
-                  i === index
-                    ? { ...t, label: `${t.label},${symbol}` }
-                    : t
-                )
-                : [
-                  ...n.transitions,
-                  { targetid: targetNode.id, label: symbol },
-                ],
-            }
-            : n
-        )
-      );
+      // Check if adding this transition would make the DFA non-deterministic
+      const symbols = symbol.split(',').filter(s => s.trim());
+      
+      // Create a temporary copy of nodes with the new transition
+      const updatedNodes = [...nodes];
+      const nodeIndex = updatedNodes.findIndex(n => n.id === selectedNode.id);
+      
+      if (nodeIndex !== -1) {
+        const transitionIndex = updatedNodes[nodeIndex].transitions.findIndex(
+          item => item.targetid === targetNode.id
+        );
+        
+        // Create a copy of the node to modify
+        const updatedNode = { ...updatedNodes[nodeIndex] };
+        
+        if (transitionIndex !== -1) {
+          // Update existing transition
+          const updatedTransitions = [...updatedNode.transitions];
+          const existingLabels = updatedTransitions[transitionIndex].label.split(',').filter(s => s.trim());
+          const newLabels = [...new Set([...existingLabels, ...symbols])]; // Remove duplicates
+          
+          updatedTransitions[transitionIndex] = {
+            ...updatedTransitions[transitionIndex],
+            label: newLabels.join(',')
+          };
+          
+          updatedNode.transitions = updatedTransitions;
+        } else {
+          // Add new transition
+          updatedNode.transitions = [
+            ...updatedNode.transitions,
+            { targetid: targetNode.id, label: symbol }
+          ];
+        }
+        
+        // Replace the node in the array
+        updatedNodes[nodeIndex] = updatedNode;
+        
+        // Validate the updated DFA
+        const validationResult = validateDFA(updatedNodes, finiteNodes);
+        if (!validationResult.isValid) {
+          setValidationResult(validationResult.errorMessage || 'Invalid transition: would make the DFA non-deterministic');
+          setIsPopupOpen(false);
+          return;
+        }
+        
+        // If validation passes, update the actual nodes state
+        setNodes(updatedNodes);
+      }
+      
       setSelectedNode(null);
       setTargetNode(null);
     }
@@ -274,6 +310,13 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
 
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
+    
+    // Validate the DFA before running
+    const validationResult = validateDFA(nodes, finiteNodes);
+    if (!validationResult.isValid) {
+      setValidationResult(validationResult.errorMessage || 'Invalid DFA');
+      return;
+    }
     
     setIsRunning(true);
     if (isRunningStepWise) setIsRunningStepWise(false);
@@ -369,6 +412,13 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     if (isRunningStepWise) {
       handleStepWise();
     } else {
+      // Validate the DFA before running
+      const validationResult = validateDFA(nodes, finiteNodes);
+      if (!validationResult.isValid) {
+        setValidationResult(validationResult.errorMessage || 'Invalid DFA');
+        return;
+      }
+      
       resetSimulation();
       setCurrNode(nodes[0]);
       setIsRunningStepWise(true);
@@ -473,6 +523,18 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     }
   };
 
+  /**
+   * Validates the current DFA and updates the validation result
+   */
+  const validateCurrentDFA = (): boolean => {
+    const result = validateDFA(nodes, finiteNodes);
+    if (!result.isValid) {
+      setValidationResult(result.errorMessage || 'Invalid DFA');
+      return false;
+    }
+    return true;
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -501,6 +563,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         stepIndex={stepIndex}
         onReset={resetSimulation}
         onLoadJson={toggleJsonInput}
+        onValidate={validateCurrentDFA}
       />
       
       <DFAInfoPanel 
