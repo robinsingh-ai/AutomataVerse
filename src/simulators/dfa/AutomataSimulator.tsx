@@ -39,7 +39,6 @@ const AutomataSimulator: React.FC = () => {
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [highlightedTransition, setHighlightedTransition] = useState<HighlightedTransition>({});
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [showQuestion, setShowQuestion] = useState<boolean>(false);
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -50,20 +49,9 @@ const AutomataSimulator: React.FC = () => {
   
   const stageRef = useRef<Konva.Stage>(null);
 
-  // Set isClient to true when component mounts to prevent hydration mismatch
+  // Set isClient to true when component mounts
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  // Load the question mark image
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const img = new window.Image();
-      img.src = '/q3.png'; // Assuming the image is in the public folder
-      img.onload = () => {
-        setImage(img);
-      };
-    }
   }, []);
 
   // Update NodeMap whenever nodes changes
@@ -483,7 +471,6 @@ const AutomataSimulator: React.FC = () => {
               finiteNodes={finiteNodes}
               currNode={currNode}
               showQuestion={showQuestion}
-              image={image}
               handleNodeClick={handleNodeClick}
               handleDragMove={handleDragMove}
               nodeMouseDown={nodeMouseDown}

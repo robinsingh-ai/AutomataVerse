@@ -73,7 +73,6 @@ export interface Transition {
     finiteNodes: Set<string>;
     currNode: Node | null;
     showQuestion: boolean;
-    image: HTMLImageElement | null;
     handleNodeClick: (node: Node) => void;
     handleDragMove: (e: KonvaEventObject<DragEvent>, nodeId: string) => void;
     handleDragStart?: (e: KonvaEventObject<DragEvent>, nodeId: string) => void;

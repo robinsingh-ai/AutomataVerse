@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Circle, Arrow, Text, Shape, Group, Image, Rect } from 'react-konva';
+import { Circle, Arrow, Text, Shape, Group, Rect } from 'react-konva';
 import Grid from './Grid';
 import { NodeCanvasProps } from '../type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
+import QuestionMark from './QuestionMark';
 
 // Define a type for the points returned by different calculation functions
 type ArrowPoints = {
@@ -331,16 +332,27 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           shadowForStrokeEnabled={false}
           className="react-konva-drag"
         >
-          {showQuestion && currNode && (currNode.id === node.id) && image && (
-            <Image 
-              image={image} 
-              alt="image" 
-              width={30} 
-              height={25} 
-              x={23} 
-              y={-35} 
-              perfectDrawEnabled={false}
-            />
+          {showQuestion && currNode && (currNode.id === node.id) && (
+            <Group>
+              <Circle
+                radius={15}
+                fill="#fff"
+                stroke="#70DAC2"
+                strokeWidth={2}
+                x={38}
+                y={12}
+              />
+              <Text
+                text="?"
+                fontSize={20}
+                fontStyle="bold"
+                fill="#70DAC2"
+                x={32}
+                y={2}
+                align="center"
+                verticalAlign="middle"
+              />
+            </Group>
           )}
           
           {/* Start arrow for first state */}

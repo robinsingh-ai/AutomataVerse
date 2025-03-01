@@ -1,25 +1,35 @@
 'use client';
 
 import React from 'react';
-import { Image } from 'react-konva';
+import { Text, Circle, Group } from 'react-konva';
 import { useTheme } from '../../../app/context/ThemeContext';
 
-export interface QuestionMarkProps {
-  image: HTMLImageElement;
-}
-
-const QuestionMark: React.FC<QuestionMarkProps> = ({ image }) => {
+const QuestionMark: React.FC = () => {
   const { theme } = useTheme();
   
   return (
-    <Image
-      image={image}
-      x={window.innerWidth / 2 - 50}
-      y={window.innerHeight / 2 - 50}
-      width={100}
-      height={100}
-      opacity={0.7}
-    />
+    <Group
+      x={window.innerWidth / 2 - 25}
+      y={window.innerHeight / 2 - 25}
+    >
+      <Circle
+        radius={25}
+        fill={theme === 'dark' ? '#333' : '#f0f0f0'}
+        stroke={theme === 'dark' ? '#70DAC2' : '#70DAC2'}
+        strokeWidth={2}
+        opacity={0.9}
+      />
+      <Text
+        text="?"
+        fontSize={35}
+        fontStyle="bold"
+        fill={theme === 'dark' ? '#70DAC2' : '#70DAC2'}
+        x={-10}
+        y={-17}
+        align="center"
+        verticalAlign="middle"
+      />
+    </Group>
   );
 };
 
