@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Circle, Arrow, Text, Shape, Group, Rect } from 'react-konva';
 import Grid from './Grid';
 import { NodeCanvasProps } from '../type';
@@ -36,6 +36,33 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   nodeMouseDown,
   nodeMouseUp
 }) => {
+  // Add animation state
+  const [animationProgress, setAnimationProgress] = useState<number>(0);
+
+  // Animation effect for highlighted transitions
+  useEffect(() => {
+    if (highlightedTransitions.length === 0) return;
+    
+    let animationFrameId: number;
+    let progress = 0;
+    
+    const animate = () => {
+      progress += 0.02; // Speed of animation
+      if (progress > 1) progress = 0;
+      
+      setAnimationProgress(progress);
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    
+    animationFrameId = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [highlightedTransitions]);
+
   // Node and transition rendering functions
   const calculateArrowPoints = (sourceX: number, sourceY: number, targetX: number, targetY: number, radius: number) => {
     const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
@@ -106,7 +133,140 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     return transitions.map(t => t.label);
   };
 
-  // Updated self-loop drawing to handle multiple transitions
+  // Function to draw animated edges
+  const drawAnimatedEdge = (
+    points: ArrowPoints | CurvedArrowPoints, 
+    isCurved: boolean,
+    progress: number, 
+    color: string = "red"
+  ) => {
+    return (
+      <Group perfectDrawEnabled={false}>
+        {/* Base line - dotted */}
+        {isCurved ? (
+          <Shape
+            sceneFunc={(context: Konva.Context) => {
+              context.beginPath();
+              context.moveTo(points.startX, points.startY);
+              context.quadraticCurveTo(
+                (points as CurvedArrowPoints).controlX, 
+                (points as CurvedArrowPoints).controlY, 
+                points.endX, 
+                points.endY
+              );
+              
+              // Set up dotted line
+              context.setLineDash([5, 3]);
+              context.strokeStyle = color;
+              context.lineWidth = 2;
+              context.stroke();
+              context.setLineDash([]);
+              
+              // Draw arrowhead
+              const arrowSize = 15;
+              const angleToCenter = Math.atan2(
+                points.endY - (points as CurvedArrowPoints).controlY, 
+                points.endX - (points as CurvedArrowPoints).controlX
+              );
+              
+              context.beginPath();
+              context.moveTo(points.endX, points.endY);
+              context.lineTo(
+                points.endX - arrowSize * Math.cos(angleToCenter + Math.PI / 6),
+                points.endY - arrowSize * Math.sin(angleToCenter + Math.PI / 6)
+              );
+              context.lineTo(
+                points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
+                points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
+              );
+              context.closePath();
+              context.fillStyle = color;
+              context.fill();
+            }}
+            perfectDrawEnabled={false}
+          />
+        ) : (
+          <Shape
+            sceneFunc={(context: Konva.Context) => {
+              context.beginPath();
+              context.moveTo(points.startX, points.startY);
+              context.lineTo(points.endX, points.endY);
+              
+              // Set up dotted line
+              context.setLineDash([5, 3]);
+              context.strokeStyle = color;
+              context.lineWidth = 2;
+              context.stroke();
+              context.setLineDash([]);
+              
+              // Draw arrowhead
+              const arrowSize = 15;
+              const angle = Math.atan2(
+                points.endY - points.startY, 
+                points.endX - points.startX
+              );
+              
+              context.beginPath();
+              context.moveTo(points.endX, points.endY);
+              context.lineTo(
+                points.endX - arrowSize * Math.cos(angle + Math.PI / 6),
+                points.endY - arrowSize * Math.sin(angle + Math.PI / 6)
+              );
+              context.lineTo(
+                points.endX - arrowSize * Math.cos(angle - Math.PI / 6),
+                points.endY - arrowSize * Math.sin(angle - Math.PI / 6)
+              );
+              context.closePath();
+              context.fillStyle = color;
+              context.fill();
+            }}
+            perfectDrawEnabled={false}
+          />
+        )}
+        
+        {/* Animated particle moving along the edge */}
+        {(() => {
+          // Calculate position along the path based on progress
+          let x, y;
+          
+          if (isCurved) {
+            // Quadratic Bezier curve formula
+            const t = progress;
+            const p0x = points.startX;
+            const p0y = points.startY;
+            const p1x = (points as CurvedArrowPoints).controlX;
+            const p1y = (points as CurvedArrowPoints).controlY;
+            const p2x = points.endX;
+            const p2y = points.endY;
+            
+            // B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+            const mt = 1 - t;
+            x = mt * mt * p0x + 2 * mt * t * p1x + t * t * p2x;
+            y = mt * mt * p0y + 2 * mt * t * p1y + t * t * p2y;
+          } else {
+            // Linear interpolation for straight lines
+            x = points.startX + (points.endX - points.startX) * progress;
+            y = points.startY + (points.endY - points.startY) * progress;
+          }
+          
+          return (
+            <Circle
+              x={x}
+              y={y}
+              radius={5}
+              fill={color}
+              shadowBlur={10}
+              shadowColor={color}
+              shadowOpacity={0.6}
+              perfectDrawEnabled={false}
+            />
+          );
+        })()}
+      </Group>
+    );
+  };
+
+  // Updated self-loop drawing to handle multiple transitions and animation
   const drawSelfLoop = (x: number, y: number, nodeId: string, index: number, isHighlighted: boolean) => {
     const radius = 20;
     const loopRadius = 20;
@@ -134,18 +294,38 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     
     return (
       <Group key={`self-loop-${index}`} perfectDrawEnabled={false}>
-        <Shape
-          sceneFunc={(context: Konva.Context, shape: Konva.Shape) => {
-            context.beginPath();
-            context.arc(loopX, loopY, loopRadius, startAngle, endAngle, false);
-            context.stroke();
-            context.closePath();
-            context.strokeShape(shape);
-          }}
-          stroke={isHighlighted ? "red" : "black"}
-          strokeWidth={2}
-          perfectDrawEnabled={false}
-        />
+        {/* Draw animated or regular loop based on highlight state */}
+        {isHighlighted ? (
+          <Shape
+            sceneFunc={(context: Konva.Context) => {
+              context.beginPath();
+              context.arc(loopX, loopY, loopRadius, startAngle, endAngle, false);
+              // Set up dotted line for animation
+              context.setLineDash([5, 3]);
+              context.strokeStyle = "red";
+              context.lineWidth = 2;
+              context.stroke();
+              context.setLineDash([]);
+              context.closePath();
+            }}
+            perfectDrawEnabled={false}
+          />
+        ) : (
+          <Shape
+            sceneFunc={(context: Konva.Context, shape: Konva.Shape) => {
+              context.beginPath();
+              context.arc(loopX, loopY, loopRadius, startAngle, endAngle, false);
+              context.stroke();
+              context.closePath();
+              context.strokeShape(shape);
+            }}
+            stroke="black"
+            strokeWidth={2}
+            perfectDrawEnabled={false}
+          />
+        )}
+        
+        {/* Arrow for the self loop */}
         <Arrow
           points={[
             loopX + loopRadius * Math.cos(arrowAngle),
@@ -159,6 +339,20 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           pointerWidth={10}
           perfectDrawEnabled={false}
         />
+        
+        {/* Animated particle for highlighted loops */}
+        {isHighlighted && (
+          <Circle
+            x={loopX + loopRadius * Math.cos(startAngle + (endAngle - startAngle) * animationProgress)}
+            y={loopY + loopRadius * Math.sin(startAngle + (endAngle - startAngle) * animationProgress)}
+            radius={5}
+            fill="red"
+            shadowBlur={10}
+            shadowColor="red"
+            shadowOpacity={0.6}
+            perfectDrawEnabled={false}
+          />
+        )}
         
         {/* Background for labels */}
         <Rect
@@ -275,63 +469,73 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
             
             return (
               <Group key={`${node.id}-${transition.targetid}-${tindex}`} perfectDrawEnabled={false}>
-                {isReverse ? (
-                  <>
-                    <Shape
-                      sceneFunc={(context: Konva.Context, _shape: Konva.Shape) => {
-                        context.beginPath();
-                        context.moveTo(points.startX, points.startY);
-                        context.quadraticCurveTo(
-                          (points as CurvedArrowPoints).controlX, 
-                          (points as CurvedArrowPoints).controlY, 
-                          points.endX, 
-                          points.endY
-                        );
-                        context.stroke();
-                        context.strokeShape(_shape);
-                      }}
-                      stroke={isHighlighted ? "red" : "black"}
-                      strokeWidth={2}
-                      perfectDrawEnabled={false}
-                    />
-                    <Shape
-                      sceneFunc={(context: Konva.Context) => {
-                        context.beginPath();
-                        const arrowSize = 15;
-                        const angleToCenter = Math.atan2(
-                          edge.target.y - points.endY, 
-                          edge.target.x - points.endX
-                        );
-                        context.moveTo(points.endX, points.endY);
-                        context.lineTo(
-                          points.endX - arrowSize * Math.cos(angleToCenter + Math.PI / 6),
-                          points.endY - arrowSize * Math.sin(angleToCenter + Math.PI / 6)
-                        );
-                        context.lineTo(
-                          points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
-                          points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
-                        );
-                        context.closePath();
-                        context.fillStyle = isHighlighted ? "red" : "black";
-                        context.fill();
-                      }}
-                      perfectDrawEnabled={false}
-                    />
-                  </>
+                {/* Draw either animated or regular arrow based on highlight state */}
+                {isHighlighted ? (
+                  drawAnimatedEdge(
+                    points, 
+                    isReverse,
+                    animationProgress,
+                    "red"
+                  )
                 ) : (
-                  <Arrow
-                    points={[
-                      points.startX, 
-                      points.startY, 
-                      points.endX, 
-                      points.endY
-                    ]}
-                    stroke={isHighlighted ? "red" : "black"}
-                    fill={isHighlighted ? "red" : "black"}
-                    pointerLength={10}
-                    pointerWidth={10}
-                    perfectDrawEnabled={false}
-                  />
+                  isReverse ? (
+                    <>
+                      <Shape
+                        sceneFunc={(context: Konva.Context, _shape: Konva.Shape) => {
+                          context.beginPath();
+                          context.moveTo(points.startX, points.startY);
+                          context.quadraticCurveTo(
+                            (points as CurvedArrowPoints).controlX, 
+                            (points as CurvedArrowPoints).controlY, 
+                            points.endX, 
+                            points.endY
+                          );
+                          context.stroke();
+                          context.strokeShape(_shape);
+                        }}
+                        stroke="black"
+                        strokeWidth={2}
+                        perfectDrawEnabled={false}
+                      />
+                      <Shape
+                        sceneFunc={(context: Konva.Context) => {
+                          context.beginPath();
+                          const arrowSize = 15;
+                          const angleToCenter = Math.atan2(
+                            edge.target.y - points.endY, 
+                            edge.target.x - points.endX
+                          );
+                          context.moveTo(points.endX, points.endY);
+                          context.lineTo(
+                            points.endX - arrowSize * Math.cos(angleToCenter + Math.PI / 6),
+                            points.endY - arrowSize * Math.sin(angleToCenter + Math.PI / 6)
+                          );
+                          context.lineTo(
+                            points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
+                            points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
+                          );
+                          context.closePath();
+                          context.fillStyle = "black";
+                          context.fill();
+                        }}
+                        perfectDrawEnabled={false}
+                      />
+                    </>
+                  ) : (
+                    <Arrow
+                      points={[
+                        points.startX, 
+                        points.startY, 
+                        points.endX, 
+                        points.endY
+                      ]}
+                      stroke="black"
+                      fill="black"
+                      pointerLength={10}
+                      pointerWidth={10}
+                      perfectDrawEnabled={false}
+                    />
+                  )
                 )}
                 
                 {/* Label Text */}
