@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 interface DraggablePanelProps {
@@ -35,7 +35,7 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
     };
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
     
     const newX = e.clientX - dragStartRef.current.x;
@@ -44,7 +44,6 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
     // Get panel dimensions
     if (panelRef.current) {
       const panelWidth = panelRef.current.offsetWidth;
-      const panelHeight = panelRef.current.offsetHeight;
       
       // Keep panel within viewport bounds
       const boundedX = Math.max(0, Math.min(window.innerWidth - panelWidth, newX));
@@ -52,24 +51,23 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
       
       setPosition({ x: boundedX, y: boundedY });
     }
-  };
+  }, [isDragging]);
 
   const handleMouseUp = () => {
     setIsDragging(false);
   };
 
   // Handle window resize to keep panel in bounds
-  const handleWindowResize = () => {
+  const handleWindowResize = useCallback(() => {
     if (panelRef.current) {
       const panelWidth = panelRef.current.offsetWidth;
-      const panelHeight = panelRef.current.offsetHeight;
       
       setPosition(prev => ({
         x: Math.min(prev.x, window.innerWidth - panelWidth),
         y: Math.min(prev.y, window.innerHeight - 40)
       }));
     }
-  };
+  }, []);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
@@ -81,7 +79,7 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('resize', handleWindowResize);
     };
-  }, [isDragging]);
+  }, [isDragging, handleMouseMove, handleWindowResize]);
 
   return (
     <div 

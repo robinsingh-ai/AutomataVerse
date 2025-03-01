@@ -26,7 +26,7 @@ const TestInputPanel: React.FC<TestInputPanelProps> = ({ onTestInput }) => {
       <div className="space-y-4">
         <div>
           <p className={`mb-2 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            Enter a string to check if it's accepted by the DFA
+            Enter a string to check if it&apos;s accepted by the DFA
           </p>
           
           <div className="space-y-3">

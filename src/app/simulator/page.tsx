@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { useTheme } from '../context/ThemeContext';
 
 export default function SimulatorPage() {
-  const [simulatorType, setSimulatorType] = useState<'Automata'>('Automata');
+  const [simulatorType] = useState<'Automata'>('Automata');
   const { theme, setTheme } = useTheme();
 
   return (
