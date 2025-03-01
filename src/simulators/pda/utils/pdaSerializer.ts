@@ -215,7 +215,8 @@ export const getNextConfigurations = (
   currentConfigs: PDAState[],
   inputString: string,
   nodes: Node[],
-  nodeMap: Record<string, Node>
+  nodeMap: Record<string, Node>,
+  epsilonOnly: boolean = false
 ): PDAState[] => {
   const nextConfigs: PDAState[] = [];
   
@@ -232,6 +233,16 @@ export const getNextConfigurations = (
       for (const transition of state.transitions) {
         const [inputSymbol, popSymbol, pushSymbol] = transition.label.split(',');
         
+        // If we're only looking for epsilon transitions, skip non-epsilon transitions
+        if (epsilonOnly && inputSymbol !== 'ε') {
+          continue;
+        }
+        
+        // If not epsilon-only mode, handle normal transitions
+        if (!epsilonOnly && inputSymbol !== 'ε' && currentSymbol === null) {
+          continue; // Skip non-epsilon transitions when no input is left
+        }
+        
         // Check if this transition can be taken
         if (canTakeTransition(transition.label, currentSymbol, stackTop)) {
           // Apply the transition to get a new configuration
@@ -244,3 +255,4 @@ export const getNextConfigurations = (
   
   return nextConfigs;
 };
+  

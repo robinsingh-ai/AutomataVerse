@@ -299,6 +299,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
   };
 
   // PDA simulation
+  // In AutomataSimulator.tsx, update the handleRun method:
+
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
     
@@ -328,19 +330,72 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
     setCurrNodes(new Set([currentConfigs[0].stateId]));
     setHighlightedNodes(new Set([currentConfigs[0].stateId]));
     
-    // Keep track of all configurations for the entire input
-    const allConfigs: PDAState[][] = [currentConfigs];
-    
     // Process each input symbol
-    for (let i = 0; i < inputString.length; i++) {
-      await sleep(1000);
+    for (let i = 0; i <= inputString.length; i++) {
+      if (i < inputString.length) {
+        await sleep(1000);
+      }
       
-      // Get all possible next configurations
+      // If we've processed all input, check for epsilon transitions
+      if (i === inputString.length) {
+        // Try epsilon transitions after all input is consumed
+        const epsilonConfigs = getNextConfigurations(currentConfigs, inputString, nodes, nodeMap, true);
+        
+        if (epsilonConfigs.length > 0) {
+          const newHighlightedTransitions: HighlightedTransition[] = [];
+          const newHighlightedNodes = new Set<string>();
+          
+          // For each epsilon configuration, highlight the transition
+          for (const nextConfig of epsilonConfigs) {
+            newHighlightedNodes.add(nextConfig.stateId);
+            
+            // Find the source configuration
+            for (const currConfig of currentConfigs) {
+              const sourceNode = nodeMap[currConfig.stateId];
+              if (sourceNode) {
+                // Check each transition from the source node
+                for (const transition of sourceNode.transitions) {
+                  if (transition.targetid === nextConfig.stateId && 
+                      transition.label.split(',')[0] === 'ε') {
+                    newHighlightedTransitions.push({
+                      d: transition,
+                      target: currConfig.stateId
+                    });
+                  }
+                }
+              }
+            }
+          }
+          
+          setHighlightedTransitions(newHighlightedTransitions);
+          setHighlightedNodes(newHighlightedNodes);
+          
+          // Update the configurations with epsilon transitions
+          currentConfigs = epsilonConfigs;
+          setCurrNodes(new Set(epsilonConfigs.map(cfg => cfg.stateId)));
+          
+          await sleep(500);
+        }
+        
+        // Now check final state
+        const hasAcceptingState = currentConfigs.some(cfg => finiteNodes.has(cfg.stateId));
+        
+        if (hasAcceptingState) {
+          setValidationResult("String is Valid");
+        } else {
+          setValidationResult("String is invalid");
+        }
+        
+        setIsRunning(false);
+        return;
+      }
+      
+      // Get all possible next configurations for the current symbol
       const nextConfigs = getNextConfigurations(currentConfigs, inputString, nodes, nodeMap);
       
       if (nextConfigs.length === 0) {
         setShowQuestion(true);
-        setValidationResult(`No valid transitions at position ${i}`);
+        setValidationResult(`No valid transitions at position ${i} - String is invalid`);
         setIsRunning(false);
         return;
       }
@@ -393,22 +448,10 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
       
       // Update for next iteration
       currentConfigs = nextConfigs;
-      allConfigs.push(nextConfigs);
       setStepIndex(i + 1);
       
       await sleep(500);
     }
-    
-    // Check if any configuration ends in an accepting state
-    const hasAcceptingState = currentConfigs.some(cfg => finiteNodes.has(cfg.stateId));
-    
-    if (hasAcceptingState) {
-      setValidationResult("String is Valid");
-    } else {
-      setValidationResult("String is invalid");
-    }
-    
-    setIsRunning(false);
   };
 
   const handleStepWise = async (): Promise<void> => {

@@ -93,7 +93,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     return Math.max(6, distance / 60);
   };
 
-  const drawSelfLoop = (x: number, y: number, label: string, index: number, isHighlighted: boolean) => {
+  const drawSelfLoop = (x: number, y: number, nodeId: string, index: number, isHighlighted: boolean) => {
     const radius = 20;
     const loopRadius = 20;
     const angleOffset = Math.PI;
@@ -102,16 +102,29 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const loopX = x;
     const loopY = y - radius - loopRadius;
     const arrowAngle = Math.PI / 18;
-
-    // Format the label for PDA transitions: inputSymbol,popSymbol,pushSymbol
-    // For display, convert to a more readable format: inputSymbol, pop:popSymbol, push:pushSymbol
-    const parts = label.split(',');
-    let displayLabel = label;
-    if (parts.length === 3) {
-      const [inputSym, popSym, pushSym] = parts;
-      displayLabel = `${inputSym}, ${popSym}/${pushSym}`;
-    }
-
+  
+    // Get all self-loop transitions for this node
+    const node = nodeMap[nodeId];
+    if (!node) return null;
+    
+    const selfTransitions = node.transitions.filter(t => t.targetid === nodeId);
+    if (selfTransitions.length === 0) return null;
+    
+    // Format each transition label
+    const labels = selfTransitions.map(t => {
+      const parts = t.label.split(',');
+      if (parts.length === 3) {
+        const [inputSym, popSym, pushSym] = parts;
+        return `${inputSym}, ${popSym}/${pushSym}`;
+      }
+      return t.label;
+    });
+    
+    // Calculate dimensions for the label background
+    const lineHeight = 16;
+    const totalHeight = labels.length * lineHeight;
+    const maxLabelWidth = Math.max(...labels.map(label => label.length * 6)) + 10;
+    
     return (
       <Group key={`self-loop-${index}`} perfectDrawEnabled={false}>
         <Shape
@@ -139,16 +152,33 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           pointerWidth={10}
           perfectDrawEnabled={false}
         />
-        <Text
-          x={loopX - displayLabel.length * 3 - 3}
-          y={loopY - loopRadius - 18}
-          text={displayLabel}
-          fontSize={16}
-          fill="black"
-          align="center"
-          verticalAlign="middle"
+        
+        {/* Background for labels */}
+        <Rect
+          x={loopX - maxLabelWidth / 2}
+          y={loopY - loopRadius - totalHeight - 10}
+          width={maxLabelWidth}
+          height={totalHeight + 6}
+          fill="white"
+          opacity={0.9}
+          cornerRadius={4}
           perfectDrawEnabled={false}
         />
+        
+        {/* Render each transition label */}
+        {labels.map((label, i) => (
+          <Text
+            key={i}
+            x={loopX - label.length * 3}
+            y={loopY - loopRadius - totalHeight + i * lineHeight - 5}
+            text={label}
+            fontSize={14}
+            fill="black"
+            align="center"
+            verticalAlign="middle"
+            perfectDrawEnabled={false}
+          />
+        ))}
       </Group>
     );
   };
@@ -166,6 +196,23 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     return highlightedTransitions.some(
       ht => ht.target === sourceId && ht.d?.targetid === targetId && ht.d?.label === label
     );
+  };
+
+  const formatMultiTransitionLabel = (sourceId: string, targetId: string): string => {
+    // Get all transitions between these two nodes
+    const source = nodeMap[sourceId];
+    if (!source) return '';
+    
+    const transitions = source.transitions.filter(t => t.targetid === targetId);
+    if (transitions.length === 0) return '';
+    
+    // If only one transition, format it normally
+    if (transitions.length === 1) {
+      return formatTransitionLabel(transitions[0].label);
+    }
+    
+    // For multiple transitions, create a combined label
+    return transitions.map(t => formatTransitionLabel(t.label)).join('\n');
   };
 
   // Format transition label for display
@@ -204,11 +251,11 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           const isHighlighted = isTransitionHighlighted(edge.source.id, edge.target.id, edge.label);
           
           // Format label for display
-          const displayLabel = formatTransitionLabel(edge.label);
+          const displayLabel = formatMultiTransitionLabel(edge.source.id, edge.target.id);
           
           // Self-loop
           if (edge.source.id === edge.target.id) {
-            return drawSelfLoop(edge.source.x, edge.source.y, edge.label, index, isHighlighted);
+            return drawSelfLoop(edge.source.x, edge.source.y, edge.source.id, index, isHighlighted);
           } 
           // Regular transition
           else {
@@ -297,38 +344,58 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                 
                 {/* Label Text */}
                 <Group perfectDrawEnabled={false}>
-                  <Rect
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (displayLabel.length * 3.2) - 3
-                      : (points.startX + points.endX - (displayLabel.length * 6.5)) / 2 - 4
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 5 
-                      : (points.startY + points.endY) / 2 - 10
-                    }
-                    width={displayLabel.length * 7 + 10}
-                    height={20}
-                    fill="white"
-                    opacity={0.8}
-                    cornerRadius={4}
-                    perfectDrawEnabled={false}
-                  />
-                  <Text
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (displayLabel.length * 6) / 2 
-                      : (points.startX + points.endX - (displayLabel.length * 6)) / 2
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) 
-                      : (points.startY + points.endY - 15) / 2
-                    }
-                    text={displayLabel}
-                    fontSize={16}
-                    fill="black"
-                    align="center"
-                    verticalAlign="middle"
-                    perfectDrawEnabled={false}
-                  />
+                  {(() => {
+                    // Get combined label for all transitions between these nodes
+                    const combinedLabel = formatMultiTransitionLabel(edge.source.id, edge.target.id);
+                    const labelLines = combinedLabel.split('\n');
+                    const lineHeight = 18;
+                    const totalHeight = labelLines.length * lineHeight;
+                    
+                    // Calculate base position for the label
+                    const baseX = isReverse 
+                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - 
+                        (labelLines[0].length * 3.2) - 3
+                      : (points.startX + points.endX - (labelLines[0].length * 6.5)) / 2 - 4;
+                    
+                    const baseY = isReverse 
+                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 
+                        totalHeight / 2
+                      : (points.startY + points.endY) / 2 - totalHeight / 2;
+                    
+                    // Calculate maximum width needed
+                    const maxLabelWidth = Math.max(...labelLines.map(line => line.length * 7 + 10));
+                    
+                    return (
+                      <>
+                        {/* Background */}
+                        <Rect
+                          x={baseX}
+                          y={baseY - 5}
+                          width={maxLabelWidth}
+                          height={totalHeight + 10}
+                          fill="white"
+                          opacity={0.9}
+                          cornerRadius={4}
+                          perfectDrawEnabled={false}
+                        />
+                        
+                        {/* Render each line of text */}
+                        {labelLines.map((line, index) => (
+                          <Text
+                            key={index}
+                            x={baseX + maxLabelWidth / 2 - (line.length * 5) / 2}
+                            y={baseY + index * lineHeight}
+                            text={line}
+                            fontSize={14}
+                            fill="black"
+                            align="center"
+                            verticalAlign="middle"
+                            perfectDrawEnabled={false}
+                          />
+                        ))}
+                      </>
+                    );
+                  })()}
                 </Group>
               </Group>
             );

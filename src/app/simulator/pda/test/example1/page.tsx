@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// PDA that accepts the a^n b^n language
+// Improved PDA that accepts the a^n b^n language
 const samplePDA = {
   "nodes": [
     {
@@ -18,6 +18,10 @@ const samplePDA = {
         {
           "targetid": "q1",
           "label": "a,A,AA"  // On 'a', pop A, push A then A
+        },
+        {
+          "targetid": "q3",
+          "label": "ε,Z,Z"   // Empty string special case - directly accept
         }
       ]
     },

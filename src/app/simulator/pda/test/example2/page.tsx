@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// PDA that accepts balanced parentheses
+// Enhanced PDA that accepts balanced parentheses with better epsilon handling
 const balancedParenthesesPDA = {
   "nodes": [
     {
@@ -21,11 +21,11 @@ const balancedParenthesesPDA = {
         },
         {
           "targetid": "q0",
-          "label": ")),(,ε"   // On ')', pop (, push nothing
+          "label": "),(,ε"   // On ')', pop (, push nothing
         },
         {
           "targetid": "q1",
-          "label": "ε,Z,Z"   // If we're done with all parentheses and Z is on top
+          "label": "ε,Z,Z"   // When only Z is left on stack (stack is empty)
         }
       ]
     },
@@ -39,7 +39,7 @@ const balancedParenthesesPDA = {
   "finalStates": ["q1"]
 };
 
-export default function Example2Page() {
+export default function ParenthesesPDAPage() {
   const router = useRouter();
   
   useEffect(() => {
