@@ -6,7 +6,6 @@ import Grid from './Grid';
 import { NodeCanvasProps } from '../type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-import QuestionMark from './QuestionMark';
 
 // Define a type for the points returned by different calculation functions
 type ArrowPoints = {
@@ -31,7 +30,6 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   finiteNodes,
   currNode,
   showQuestion,
-  image,
   handleNodeClick,
   handleDragMove,
   nodeMouseDown,
