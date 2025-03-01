@@ -39,7 +39,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
           
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-8">
             <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium hover:text-blue-600 transition-colors">
-              DFA Simulator
+              Simulators
             </Link>
             <button 
               onClick={() => onThemeChange(currentTheme === 'dark' ? 'light' : 'dark')}
@@ -93,7 +93,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             }`}
             onClick={() => setMenuOpen(false)}
           >
-            DFA Simulator
+            Simulators
           </Link>
           <button 
             onClick={() => {
