@@ -19,7 +19,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   showGrid,
   onToggleGrid,
   stepIndex,
-  onReset
+  onReset,
+  onLoadJson
 }) => {
   const { theme } = useTheme();
   
@@ -50,6 +51,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               Toggle Final State
             </button>
           )}
+          
+          <button
+            onClick={onLoadJson}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                : 'bg-purple-500 hover:bg-purple-600 text-white'
+            }`}
+          >
+            Load DFA from JSON
+          </button>
         </div>
         
         <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>

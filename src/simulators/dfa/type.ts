@@ -39,6 +39,7 @@ export interface Transition {
     onInputChange: (value: string) => void;
     onReset: () => void;
     onToggleGrid: () => void;
+    onLoadJson: () => void;
     inputString: string;
     validationResult: string | null;
     selectedNode: Node | null;

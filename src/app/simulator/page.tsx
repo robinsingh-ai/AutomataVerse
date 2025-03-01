@@ -42,6 +42,28 @@ export default function SimulatorHomePage() {
           </Link>
         ))}
       </div>
+      
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Sample DFAs</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link 
+            href="/simulator/dfa/test" 
+            className={`block p-6 rounded-lg shadow-md transition-transform transform hover:scale-105 hover:shadow-lg
+              ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}
+          >
+            <h2 className="text-xl font-semibold mb-2">Even 0s and 1s</h2>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+              A DFA that accepts strings with an even number of both 0s and 1s.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                ${theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'}`}>
+                Try Example &rarr;
+              </span>
+            </div>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

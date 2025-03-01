@@ -11,6 +11,9 @@ import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
 import DFAInfoPanel from './components/DFAInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
+import { deserializeDFA, SerializedDFA, serializeDFA, encodeDFAForURL } from './utils/dfaSerializer';
+import { useSearchParams } from 'next/navigation';
+import JsonInputDialog from './components/JsonInputDialog';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -21,8 +24,13 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
   ssr: false,
 });
 
-const AutomataSimulator: React.FC = () => {
+interface AutomataSimulatorProps {
+  initialDFA?: string; // Optional JSON string to initialize the DFA
+}
+
+const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => {
   const { theme } = useTheme();
+  const searchParams = useSearchParams();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [nodeMap, setNodeMap] = useState<NodeMap>({});
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -46,6 +54,8 @@ const AutomataSimulator: React.FC = () => {
   const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
   const [targetNode, setTargetNode] = useState<Node | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [jsonInputOpen, setJsonInputOpen] = useState<boolean>(false);
+  const [jsonInput, setJsonInput] = useState<string>('');
   
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -53,6 +63,28 @@ const AutomataSimulator: React.FC = () => {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Check for DFA in URL params when component mounts
+  useEffect(() => {
+    if (isClient) {
+      // First check for initialDFA prop
+      if (initialDFA) {
+        loadDFAFromJSON(initialDFA);
+      } 
+      // Then check URL params
+      else {
+        const dfaParam = searchParams.get('dfa');
+        if (dfaParam) {
+          try {
+            const decodedDFA = decodeURIComponent(dfaParam);
+            loadDFAFromJSON(decodedDFA);
+          } catch (error) {
+            console.error('Error loading DFA from URL:', error);
+          }
+        }
+      }
+    }
+  }, [isClient, initialDFA, searchParams]);
 
   // Update NodeMap whenever nodes changes
   useEffect(() => {
@@ -62,6 +94,49 @@ const AutomataSimulator: React.FC = () => {
     });
     setNodeMap(map);
   }, [nodes]);
+
+  /**
+   * Loads a DFA from a JSON string
+   */
+  const loadDFAFromJSON = (jsonString: string): void => {
+    try {
+      const parsedDFA = deserializeDFA(jsonString);
+      if (parsedDFA) {
+        setNodes(parsedDFA.nodes);
+        
+        // Convert finalStates array to Set
+        const finalStatesSet = new Set<string>(parsedDFA.finalStates);
+        setFiniteNodes(finalStatesSet);
+        
+        // Reset simulation state
+        resetSimulation();
+        setValidationResult('DFA loaded successfully');
+      } else {
+        setValidationResult('Error: Invalid DFA format');
+      }
+    } catch (error) {
+      console.error('Error loading DFA:', error);
+      setValidationResult('Error loading DFA');
+    }
+  };
+
+  /**
+   * Handles the JSON input submission
+   */
+  const handleJsonInputSubmit = (): void => {
+    if (jsonInput.trim()) {
+      loadDFAFromJSON(jsonInput);
+    }
+    setJsonInputOpen(false);
+    setJsonInput('');
+  };
+
+  /**
+   * Toggles the JSON input dialog
+   */
+  const toggleJsonInput = (): void => {
+    setJsonInputOpen(!jsonInputOpen);
+  };
 
   // Clear highlighted transition after a short delay
   useEffect(() => {
@@ -379,6 +454,25 @@ const AutomataSimulator: React.FC = () => {
     return Array.from(symbolsSet).sort();
   };
 
+  /**
+   * Generates a shareable URL with the current DFA state
+   */
+  const shareDFA = (): void => {
+    try {
+      // Create a URL with the encoded DFA
+      const encodedDFA = encodeDFAForURL(nodes, finiteNodes);
+      const url = `${window.location.origin}/simulator/dfa?dfa=${encodedDFA}`;
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(url)
+        .catch(err => {
+          console.error('Failed to copy URL to clipboard:', err);
+        });
+    } catch (error) {
+      console.error('Error generating shareable URL:', error);
+    }
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -406,6 +500,7 @@ const AutomataSimulator: React.FC = () => {
         onToggleGrid={() => setShowGrid(!showGrid)}
         stepIndex={stepIndex}
         onReset={resetSimulation}
+        onLoadJson={toggleJsonInput}
       />
       
       <DFAInfoPanel 
@@ -415,7 +510,10 @@ const AutomataSimulator: React.FC = () => {
         inputSymbols={getInputSymbols()}
       />
       
-      <TestInputPanel onTestInput={handleTestInput} />
+      <TestInputPanel 
+        onTestInput={handleTestInput} 
+        onShareDFA={shareDFA}
+      />
       
       <div 
         style={{ 
@@ -487,6 +585,14 @@ const AutomataSimulator: React.FC = () => {
           onSubmit={handleSymbolInputSubmit}
         />
       )}
+      
+      <JsonInputDialog
+        isOpen={jsonInputOpen}
+        onClose={() => setJsonInputOpen(false)}
+        onSubmit={handleJsonInputSubmit}
+        jsonInput={jsonInput}
+        setJsonInput={setJsonInput}
+      />
     </div>
   );
 };
