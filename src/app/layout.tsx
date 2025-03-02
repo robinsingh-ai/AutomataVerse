@@ -10,6 +10,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <title>AutomataVerse - Automata Simulator for DFA, NFA, PDA & Turing Machines</title>
+        {/* seo */}
+        <meta name="description" content="Learn about automata theory and formal languages with our interactive simulator. Explore finite automata, pushdown automata, and more with our intuitive tools." />
+        <meta name="keywords" content="automata theory, formal languages, finite automata, pushdown automata, interactive simulator" />
+        <meta
+          name="description"
+          content="Automataverse is an online automata simulator where you can visualize and test DFA, NFA, PDA, and Turing Machines interactively."
+        />
+        <meta
+          name="keywords"
+          content="automata simulator, DFA simulator, NFA, PDA, Turing Machine, finite automata, computational theory, formal languages"
+        />
+        <meta name="author" content="AutomataVerse" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="robots" content="index, follow" />
+        
+
+
         {/* Google Analytics Script */}
         <Script
           async
