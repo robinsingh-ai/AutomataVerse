@@ -26,12 +26,18 @@ export default function SimulatorHomePage() {
       description: 'Pushdown Automaton simulator for creating and testing finite state machines.',
       path: '/simulator/pda',
     },
+    {
+      id: 'tm',
+      name: 'TM Simulator',
+      description: 'Turing Machine simulator for creating and testing finite state machines.',
+      path: '/simulator/tm',
+    },
 
     // Add more simulators here in the future
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 ">
       <h1 className="text-3xl font-bold mb-8">Automata Simulators</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -123,6 +129,40 @@ export default function SimulatorHomePage() {
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
                 ${theme === 'dark' ? 'bg-orange-900 text-orange-200' : 'bg-orange-100 text-orange-800'}`}>
                 Try Example &rarr;
+              </span>
+            </div>
+          </Link>
+
+          <Link 
+            href="/simulator/tm/test/example1" 
+            className={`block p-6 rounded-lg shadow-md transition-transform transform hover:scale-105 hover:shadow-lg
+              ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}
+          >
+            <h2 className="text-xl font-semibold mb-2">TM: TripletChecker</h2>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+              A TM that accepts a^n b^n c^n language.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                ${theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                Try Example &rarr;
+              </span>
+            </div>
+          </Link>
+
+          <Link 
+            href="/simulator/tm/test/example3" 
+            className={`block p-6 rounded-lg shadow-md transition-transform transform hover:scale-105 hover:shadow-lg
+              ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}
+          >
+            <h2 className="text-xl font-semibold mb-2">TM: Binary Addition</h2>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+              A TM that adds two binary numbers.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                ${theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                Try Example with Input 1010 and 1011 separated by 'c' &rarr;
               </span>
             </div>
           </Link>
