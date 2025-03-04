@@ -1,4 +1,4 @@
-import { Node, TMState, Tape, TapeMode, Direction } from '../type';
+import { Node, TMState, Tape, TapeMode, Direction, Transition } from '../type';
 
 export interface SerializedTM {
   nodes: Node[];
