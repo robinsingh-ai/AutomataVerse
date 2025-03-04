@@ -11,6 +11,7 @@ type NavbarProps = {
 
 const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const themeColor = '#70D9C2';
 
   return (
     <nav className={`fixed top-0 left-0 w-full z-50 ${currentTheme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'} shadow-lg`}>
@@ -18,7 +19,6 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
         <div className="flex justify-between h-16">
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center">
-              
               <div className="w-auto relative">
                 <Image 
                   src="/logo/png/3.png" 
@@ -28,7 +28,6 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
                   className={`${currentTheme === 'dark' ? 'brightness-200' : ''} object-contain`}
                   priority
                 />
-                
               </div>
               <span className="text-xl font-medium mr-2">
                 <span style={{ color: '#70DAC2' }}>Automata</span>
@@ -37,15 +36,24 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             </Link>
           </div>
           
-          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-8">
-            <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium hover:text-blue-600 transition-colors">
+          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
+            <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
               Simulators
+            </Link>
+            <Link href="/getting-started" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+              Getting Started
+            </Link>
+            <Link href="/features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+              Features
+            </Link>
+            <Link href="/login" className="ml-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
+              Login
             </Link>
             <button 
               onClick={() => onThemeChange(currentTheme === 'dark' ? 'light' : 'dark')}
               className={`flex items-center justify-center p-2 rounded-full ${
                 currentTheme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
-              } hover:bg-blue-600 hover:text-white transition-colors`}
+              } hover:text-white transition-colors hover:bg-teal-500`}
               aria-label="Toggle dark mode"
             >
               {currentTheme === 'dark' ? (
@@ -65,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
               onClick={() => setMenuOpen(!menuOpen)}
               className={`inline-flex items-center justify-center p-2 rounded-md ${
                 currentTheme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              } focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500`}
+              } focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500`}
               aria-expanded="false"
             >
               <span className="sr-only">Open main menu</span>
@@ -89,11 +97,37 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
           <Link 
             href="/simulator" 
             className={`block px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-900 hover:bg-gray-100'
+              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
             }`}
             onClick={() => setMenuOpen(false)}
           >
             Simulators
+          </Link>
+          <Link 
+            href="/getting-started" 
+            className={`block px-3 py-2 rounded-md text-base font-medium ${
+              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+            }`}
+            onClick={() => setMenuOpen(false)}
+          >
+            Getting Started
+          </Link>
+          <Link 
+            href="/features" 
+            className={`block px-3 py-2 rounded-md text-base font-medium ${
+              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+            }`}
+            onClick={() => setMenuOpen(false)}
+          >
+            Features
+          </Link>
+          <Link 
+            href="/login" 
+            className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+            style={{ backgroundColor: themeColor }}
+            onClick={() => setMenuOpen(false)}
+          >
+            Login
           </Link>
           <button 
             onClick={() => {
@@ -101,7 +135,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
               setMenuOpen(false);
             }}
             className={`w-full text-left flex items-center px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:bg-gray-700' : 'text-gray-900 hover:bg-gray-100'
+              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
             }`}
           >
             <span className="mr-2">

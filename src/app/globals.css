@@ -40,7 +40,8 @@
 
 /* Smooth dragging */
 body {
-  overflow: hidden;
+  overflow: auto;
+  min-height: 100vh;
 }
 
 /* Add smooth dragging for react-konva */
