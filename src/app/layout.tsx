@@ -10,6 +10,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <title>AutomataVerse - Automata Simulator for DFA, NFA, PDA & Turing Machines</title>
         {/* seo */}
         <meta name="description" content="Learn about automata theory and formal languages with our interactive simulator. Explore finite automata, pushdown automata, and more with our intuitive tools." />
