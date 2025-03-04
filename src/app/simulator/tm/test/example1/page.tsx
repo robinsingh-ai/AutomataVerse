@@ -53,7 +53,7 @@ const TripletCheckerTM = {
       transitions: [
         { targetid: "q4", label: "y,y,R" },
         { targetid: "q4", label: "z,z,R" },
-        { targetid: "q5", label: "_,_,R" },
+        { targetid: "q5", label: "□,□,R" },
       ],
     },
     { id: "q5", x: 451, y: 599.5, transitions: [] },
