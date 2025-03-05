@@ -79,17 +79,22 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         loadDFAFromJSON(initialDFA);
         setShowWelcomePanel(false); // Skip welcome panel if DFA is provided
       } 
-      // Then check URL params
-      else {
-        const dfaParam = searchParams.get('dfa');
-        if (dfaParam) {
-          try {
-            const decodedDFA = decodeURIComponent(dfaParam);
-            loadDFAFromJSON(decodedDFA);
-            setShowWelcomePanel(false); // Skip welcome panel if DFA is in URL
-          } catch (error) {
-            console.error('Error loading DFA from URL:', error);
+      // Then check URL params safely using try-catch
+      else if (searchParams) {
+        try {
+          const dfaParam = searchParams.get('dfa');
+          if (dfaParam) {
+            try {
+              const decodedDFA = decodeURIComponent(dfaParam);
+              loadDFAFromJSON(decodedDFA);
+              setShowWelcomePanel(false); // Skip welcome panel if DFA is in URL
+            } catch (error) {
+              console.error('Error loading DFA from URL:', error);
+            }
           }
+        } catch (error) {
+          // Handle potential searchParams errors silently
+          console.error('Error accessing searchParams:', error);
         }
       }
     }
