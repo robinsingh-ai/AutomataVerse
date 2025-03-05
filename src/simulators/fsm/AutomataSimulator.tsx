@@ -22,6 +22,7 @@ import {
 } from './utils/fsmSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
+import FSMInfoPanel from './components/FSMInfoPanel';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -712,7 +713,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         machineType={machineType}
       />
       
-      <MooreInfoPanel 
+      <FSMInfoPanel 
         states={nodes.map(node => node.id)} 
         initialState={nodes.length > 0 ? 'q0' : null}
         finalStates={Array.from(finiteNodes)}
@@ -720,6 +721,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         outputAlphabet={outputAlphabet}
         currentState={Array.from(currNodes)[0] || null}
         currentStateOutput={currentStateOutput}
+        machineType={machineType}
       />
       
       <OutputPanel 
