@@ -46,7 +46,10 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             <Link href="/features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
               Features
             </Link>
-            <Link href="/login" className="ml-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
+            <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500">
+              Sign Up
+            </Link>
+            <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
               Login
             </Link>
             <button 
@@ -120,6 +123,13 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             onClick={() => setMenuOpen(false)}
           >
             Features
+          </Link>
+          <Link 
+            href="/signup" 
+            className={`block px-3 py-2 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2`}
+            onClick={() => setMenuOpen(false)}
+          >
+            Sign Up
           </Link>
           <Link 
             href="/login" 
