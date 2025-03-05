@@ -394,7 +394,7 @@ export default function Home() {
                 </span>
               </div>
               <p className="mt-2 text-sm font-medium">
-                Copyright © 2025 CircuitVerse, All rights reserved.
+                Copyright © 2025 AutomataVerse, All rights reserved.
               </p>
               <p className="mt-1 text-sm font-medium">
                 Developed by <a 
