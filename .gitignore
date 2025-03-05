@@ -39,3 +39,13 @@ next-env.d.ts
 /src/hooks/
 /src/interfaces/
 
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+.env.example
+.env.local.example
+
+.env
+
