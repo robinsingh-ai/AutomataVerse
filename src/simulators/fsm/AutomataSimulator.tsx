@@ -10,7 +10,6 @@ import { Node, NodeMap, HighlightedTransition, StageProps, FSMState, MachineType
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
-import FSMInfoPanel from './components/FSMInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
 import { 
   deserializeFSM, 
