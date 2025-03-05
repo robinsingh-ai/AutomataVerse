@@ -407,7 +407,9 @@ export default function Home() {
                   Robin
                 </a>
               </p>
+             
             </div>
+            <div> <a href="https://www.producthunt.com/posts/automataverse?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-automataverse" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=938252&theme=light&t=1741194877338" alt="AutomataVerse - Automata&#0032;simulator&#0032;for&#0032;dfa&#0044;&#0032;nfa&#0044;&#0032;pda&#0032;&#0038;&#0032;turing&#0032;machines | Product Hunt" style={{width: '250px', height: '54px'}} width="250" height="54" /></a></div>
             <div className="flex flex-wrap gap-8">
               <div>
                 <h3 className="font-semibold mb-3">Simulators</h3>
