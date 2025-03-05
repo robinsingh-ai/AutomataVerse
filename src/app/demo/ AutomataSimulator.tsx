@@ -11,9 +11,12 @@ import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
 import DFAInfoPanel from './components/DFAInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
-import { deserializeDFA, SerializedDFA, serializeDFA, encodeDFAForURL, validateDFA } from './utils/dfaSerializer';
+import { deserializeDFA, SerializedDFA, serializeDFA, encodeDFAForURL, validateDFA } from './components/dfaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
+import WelcomePanel from './WelcomePanel';
+import GuidedTour from './GuidedTour';
+import { Arrow } from 'react-konva';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -57,6 +60,10 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
   const [jsonInputOpen, setJsonInputOpen] = useState<boolean>(false);
   const [jsonInput, setJsonInput] = useState<string>('');
   
+  // New state for the guided tour - simplified
+  const [showWelcomePanel, setShowWelcomePanel] = useState<boolean>(true);
+  const [isTourActive, setIsTourActive] = useState<boolean>(false);
+  
   const stageRef = useRef<Konva.Stage>(null);
 
   // Set isClient to true when component mounts
@@ -70,6 +77,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
       // First check for initialDFA prop
       if (initialDFA) {
         loadDFAFromJSON(initialDFA);
+        setShowWelcomePanel(false); // Skip welcome panel if DFA is provided
       } 
       // Then check URL params
       else {
@@ -78,6 +86,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
           try {
             const decodedDFA = decodeURIComponent(dfaParam);
             loadDFAFromJSON(decodedDFA);
+            setShowWelcomePanel(false); // Skip welcome panel if DFA is in URL
           } catch (error) {
             console.error('Error loading DFA from URL:', error);
           }
@@ -568,18 +577,112 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     return true;
   };
 
+  /**
+   * Handles starting the guided tour - simplified
+   */
+  const handleStartTour = (): void => {
+    // Reset the simulator state
+    setNodes([]);
+    setFiniteNodes(new Set());
+    setInputString('');
+    setSelectedNode(null);
+    setTargetNode(null);
+    resetSimulation();
+    
+    // Start the tour
+    setIsTourActive(true);
+    setShowWelcomePanel(false);
+  };
+
+  /**
+   * Handles completing the guided tour
+   */
+  const handleCompleteTour = (): void => {
+    setIsTourActive(false);
+  };
+
+  /**
+   * Handles closing the welcome panel without starting the tour
+   */
+  const handleCloseWelcomePanel = (): void => {
+    setShowWelcomePanel(false);
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
 
   return (
-    <div 
-      className={`w-full h-full overflow-hidden relative
-        ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
-      style={{
-        cursor: stageProps.draggable && stageDragging ? 'grabbing' : stageProps.draggable ? 'grab' : 'default'
-      }}
-    >
+    <div className="w-full h-full relative overflow-hidden">
+      {/* AutomataSimulator content */}
+      <div className="w-full h-full relative">
+        {showWelcomePanel && (
+          <WelcomePanel onStartTour={handleStartTour} onClose={handleCloseWelcomePanel} />
+        )}
+        
+        <GuidedTour isActive={isTourActive} onComplete={handleCompleteTour} />
+        
+        {stageRef && (
+          <Stage
+            ref={stageRef}
+            width={window.innerWidth}
+            height={window.innerHeight - 64} // Subtract navbar height
+            draggable={stageProps.draggable && !selectedNode}
+            x={stageProps.x}
+            y={stageProps.y}
+            scaleX={stageProps.scale}
+            scaleY={stageProps.scale}
+            onDragMove={handleDragMoveScreen}
+            onWheel={handleWheel}
+            onClick={handleStageClick}
+          >
+            <Layer>
+              {showGrid && (
+                <DynamicGridCanvas
+                  stageProps={stageProps}
+                  color={theme === "dark" ? "#3a3a3a" : "#f0f0f0"}
+                  size={20}
+                />
+              )}
+              
+              {nodes.length > 0 && (
+                <Arrow
+                  x={0}
+                  y={0}
+                  points={[
+                    nodes[0].x - 100 * (1 / stageProps.scale),
+                    nodes[0].y,
+                    nodes[0].x - 50 * (1 / stageProps.scale),
+                    nodes[0].y,
+                  ]}
+                  stroke={theme === "dark" ? "white" : "black"}
+                  fill={theme === "dark" ? "white" : "black"}
+                  strokeWidth={2 * (1 / stageProps.scale)}
+                  pointerLength={10 * (1 / stageProps.scale)}
+                  pointerWidth={10 * (1 / stageProps.scale)}
+                />
+              )}
+              
+              <DynamicNodeCanvas
+                nodes={nodes}
+                nodeMap={nodeMap}
+                finiteNodes={finiteNodes}
+                selectedNode={selectedNode}
+                highlightedTransition={highlightedTransition}
+                showGrid={showGrid}
+                stageProps={stageProps}
+                currNode={currNode}
+                showQuestion={showQuestion}
+                handleNodeClick={handleNodeClick}
+                handleDragMove={handleDragMove}
+                nodeMouseDown={nodeMouseDown}
+                nodeMouseUp={nodeMouseUp}
+              />
+            </Layer>
+          </Stage>
+        )}
+      </div>
+      
       <ControlPanel
         onAddNode={handleAddNode}
         onSetFinite={handleSetFinite}
@@ -597,6 +700,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         onReset={resetSimulation}
         onLoadJson={toggleJsonInput}
         onValidate={validateCurrentDFA}
+        onStartTour={handleStartTour}
       />
       
       <DFAInfoPanel 
@@ -611,69 +715,6 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         onShareDFA={shareDFA}
       />
       
-      <div 
-        style={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          width: '100%', 
-          height: '100%', 
-          overflow: 'hidden',
-          touchAction: 'none'
-        }}
-      >
-        <Stage
-          ref={stageRef}
-          width={window.innerWidth}
-          height={window.innerHeight}
-          className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
-          x={stageProps.x}
-          y={stageProps.y}
-          draggable={stageProps.draggable}
-          onClick={handleStageClick}
-          onDragMove={handleDragMoveScreen}
-          onWheel={handleWheel}
-          onPointerDown={(event) => { 
-            if (event.evt.button === 1) setIsStageDragging(true); 
-          }}
-          onPointerUp={(event) => { 
-            if (event.evt.button === 1) setIsStageDragging(false); 
-          }}
-          onTouchStart={() => setIsStageDragging(true)}
-          onTouchEnd={() => setIsStageDragging(false)}
-          scaleX={stageProps.scale}
-          scaleY={stageProps.scale}
-        >
-          <Layer id="grid-layer" perfectDrawEnabled={false}>
-            {showGrid && (
-              <DynamicGridCanvas
-                size={20}
-                color={theme === 'dark' ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}
-                stageProps={stageProps}
-              />
-            )}
-          </Layer>
-          
-          <Layer id="node-layer" perfectDrawEnabled={false}>
-            <DynamicNodeCanvas
-              nodes={nodes}
-              showGrid={showGrid}
-              stageProps={stageProps}
-              nodeMap={nodeMap}
-              highlightedTransition={highlightedTransition}
-              selectedNode={selectedNode}
-              finiteNodes={finiteNodes}
-              currNode={currNode}
-              showQuestion={showQuestion}
-              handleNodeClick={handleNodeClick}
-              handleDragMove={handleDragMove}
-              nodeMouseDown={nodeMouseDown}
-              nodeMouseUp={nodeMouseUp}
-            />
-          </Layer>
-        </Stage>
-      </div>
-      
       {isPopupOpen && (
         <InputPopup
           isOpen={isPopupOpen}
@@ -682,13 +723,15 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         />
       )}
       
-      <JsonInputDialog
-        isOpen={jsonInputOpen}
-        onClose={() => setJsonInputOpen(false)}
-        onSubmit={handleJsonInputSubmit}
-        jsonInput={jsonInput}
-        setJsonInput={setJsonInput}
-      />
+      {jsonInputOpen && (
+        <JsonInputDialog
+          isOpen={jsonInputOpen}
+          onClose={() => setJsonInputOpen(false)}
+          onSubmit={handleJsonInputSubmit}
+          jsonInput={jsonInput}
+          setJsonInput={setJsonInput}
+        />
+      )}
     </div>
   );
 };

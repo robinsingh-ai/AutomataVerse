@@ -40,9 +40,15 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
               Simulators
             </Link>
-            <Link href="/getting-started" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
-              Getting Started
+            
+            <Link href="/learn" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+              Learn
             </Link>
+            
+            <Link href="/demo" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+              Demo
+            </Link>
+            
             <Link href="/features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
               Features
             </Link>
@@ -102,25 +108,33 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             className={`block px-3 py-2 rounded-md text-base font-medium ${
               currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
             }`}
-            onClick={() => setMenuOpen(false)}
           >
             Simulators
           </Link>
+          
           <Link 
-            href="/getting-started" 
+            href="/learn" 
             className={`block px-3 py-2 rounded-md text-base font-medium ${
               currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
             }`}
-            onClick={() => setMenuOpen(false)}
           >
-            Getting Started
+            Learn
           </Link>
+          
+          <Link 
+            href="/demo" 
+            className={`block px-3 py-2 rounded-md text-base font-medium ${
+              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+            }`}
+          >
+            Demo
+          </Link>
+          
           <Link 
             href="/features" 
             className={`block px-3 py-2 rounded-md text-base font-medium ${
               currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
             }`}
-            onClick={() => setMenuOpen(false)}
           >
             Features
           </Link>

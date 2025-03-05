@@ -105,7 +105,7 @@ export const validateDFA = (nodes: Node[], finalStates: Set<string>): Validation
   }
   
   // 7. Check if all states have transitions for all symbols in the alphabet
-  // We keep this commented out to allow partially built DFAs during design
+  // We keep this commented out during the guided tour to allow partially built DFAs
   /*
   for (const node of nodes) {
     const stateTransitions = new Set<string>();
