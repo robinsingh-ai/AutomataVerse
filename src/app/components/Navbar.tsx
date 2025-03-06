@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { logoutUser } from '../store/authSlice';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 type NavbarProps = {
   onThemeChange: (theme: 'light' | 'dark') => void;
@@ -12,6 +16,138 @@ type NavbarProps = {
 const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const themeColor = '#70D9C2';
+  
+  const { user } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+  
+  // Add state to track if we're client-side to prevent hydration errors
+  const [isClient, setIsClient] = useState(false);
+  
+  // After initial render, mark as client-side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  const handleLogout = async () => {
+    try {
+      await dispatch(logoutUser()).unwrap();
+      Cookies.remove('authSession');
+      router.push('/login');
+      setMenuOpen(false);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  // Render auth links only on client side
+  const renderAuthLinks = () => {
+    // During server render or initial client render before hydration
+    if (!isClient) {
+      return (
+        <>
+          <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500">
+            Sign Up
+          </Link>
+          <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
+            Login
+          </Link>
+        </>
+      );
+    }
+    
+    // After hydration, render based on auth state
+    return user ? (
+      <>
+        <Link href="/profile" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+          Profile
+        </Link>
+        
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors"
+          style={{ backgroundColor: themeColor }}
+        >
+          Logout
+        </button>
+      </>
+    ) : (
+      <>
+        <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500">
+          Sign Up
+        </Link>
+        <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
+          Login
+        </Link>
+      </>
+    );
+  };
+
+  // Render mobile auth links only on client side
+  const renderMobileAuthLinks = () => {
+    // During server render or initial client render before hydration
+    if (!isClient) {
+      return (
+        <>
+          <Link 
+            href="/signup" 
+            className={`block px-3 py-2 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2`}
+            onClick={() => setMenuOpen(false)}
+          >
+            Sign Up
+          </Link>
+          <Link 
+            href="/login" 
+            className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+            style={{ backgroundColor: themeColor }}
+            onClick={() => setMenuOpen(false)}
+          >
+            Login
+          </Link>
+        </>
+      );
+    }
+    
+    // After hydration, render based on auth state
+    return user ? (
+      <>
+        <Link 
+          href="/profile" 
+          className={`block px-3 py-2 rounded-md text-base font-medium ${
+            currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+          }`}
+        >
+          Profile
+        </Link>
+        
+        <button
+          onClick={handleLogout}
+          className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+          style={{ backgroundColor: themeColor }}
+        >
+          Logout
+        </button>
+      </>
+    ) : (
+      <>
+        <Link 
+          href="/signup" 
+          className={`block px-3 py-2 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2`}
+          onClick={() => setMenuOpen(false)}
+        >
+          Sign Up
+        </Link>
+        <Link 
+          href="/login" 
+          className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+          style={{ backgroundColor: themeColor }}
+          onClick={() => setMenuOpen(false)}
+        >
+          Login
+        </Link>
+      </>
+    );
+  };
 
   return (
     <nav className={`fixed top-0 left-0 w-full z-50 ${currentTheme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'} shadow-lg`}>
@@ -52,12 +188,11 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             <Link href="/features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
               Features
             </Link>
-            <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500">
-              Sign Up
-            </Link>
-            <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
-              Login
-            </Link>
+            
+            {/* Use the client-side only auth links function */}
+            {renderAuthLinks()}
+            
+            {/* Theme toggle button */}
             <button 
               onClick={() => onThemeChange(currentTheme === 'dark' ? 'light' : 'dark')}
               className={`flex items-center justify-center p-2 rounded-full ${
@@ -138,21 +273,11 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
           >
             Features
           </Link>
-          <Link 
-            href="/signup" 
-            className={`block px-3 py-2 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2`}
-            onClick={() => setMenuOpen(false)}
-          >
-            Sign Up
-          </Link>
-          <Link 
-            href="/login" 
-            className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
-            style={{ backgroundColor: themeColor }}
-            onClick={() => setMenuOpen(false)}
-          >
-            Login
-          </Link>
+          
+          {/* Use the client-side only mobile auth links function */}
+          {renderMobileAuthLinks()}
+          
+          {/* Mobile theme toggle button */}
           <button 
             onClick={() => {
               onThemeChange(currentTheme === 'dark' ? 'light' : 'dark');

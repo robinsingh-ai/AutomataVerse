@@ -1,5 +1,7 @@
 import './globals.css';
 import { ThemeProvider } from './context/ThemeContext';
+import { ReduxProvider } from './context/ReduxProvider';
+import AuthStateListener from './context/AuthStateListener';
 import Script from 'next/script';
 
 export default function RootLayout({
@@ -44,7 +46,11 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="transition-colors duration-200">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ReduxProvider>
+          <AuthStateListener>
+            <ThemeProvider>{children}</ThemeProvider>
+          </AuthStateListener>
+        </ReduxProvider>
       </body>
     </html>
   );

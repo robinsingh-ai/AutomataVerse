@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useTheme } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 
@@ -285,7 +284,7 @@ export default function Home() {
                 </svg>
               </div>
               <div className={`mt-4 p-3 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                <p className="text-sm font-mono">DFA that accepts binary strings ending with "01"</p>
+                <p className="text-sm font-mono">DFA that accepts binary strings ending with &quot;01&quot;</p>
               </div>
             </div>
           </div>
