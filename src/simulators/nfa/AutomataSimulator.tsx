@@ -5,13 +5,22 @@ import { Stage, Layer } from 'react-konva';
 import dynamic from 'next/dynamic';
 import ControlPanel from './components/ControlPanel';
 import InputPopup from './components/InputPopup';
-import { Node, NodeMap, HighlightedTransition, StageProps } from './type';
+import NFAInfoPanel from './components/NFAInfoPanel';
+import { Node, NodeMap, HighlightedTransition, StageProps, NFAState } from './type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
-import NFAInfoPanel from './components/NFAInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
-import { deserializeNFA, SerializedNFA, serializeNFA, encodeNFAForURL, validateNFA, computeEpsilonClosure, getNextStates } from './utils/nfaSerializer';
+import { 
+  deserializeNFA, 
+  SerializedNFA, 
+  serializeNFA, 
+  encodeNFAForURL, 
+  validateNFA, 
+  getNextConfiguration, 
+  simulateNFA,
+  computeEpsilonClosure
+} from './utils/nfaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
 
@@ -24,11 +33,11 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
   ssr: false,
 });
 
-interface AutomataSimulatorProps {
+interface NFASimulatorProps {
   initialNFA?: string; // Optional JSON string to initialize the NFA
 }
 
-const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => {
+const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -57,6 +66,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
   const [isClient, setIsClient] = useState(false);
   const [jsonInputOpen, setJsonInputOpen] = useState<boolean>(false);
   const [jsonInput, setJsonInput] = useState<string>('');
+  const [currentConfiguration, setCurrentConfiguration] = useState<NFAState | null>(null);
+  const [allowEpsilon, setAllowEpsilon] = useState<boolean>(true); // Default to allowing epsilon transitions (ε-NFA)
   
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -105,7 +116,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
       if (parsedNFA) {
         // Validate the NFA before loading
         const finalStatesSet = new Set<string>(parsedNFA.finalStates);
-        const validationResult = validateNFA(parsedNFA.nodes, finalStatesSet);
+        const validationResult = validateNFA(parsedNFA.nodes, finalStatesSet, parsedNFA.allowEpsilon);
         
         if (!validationResult.isValid) {
           setValidationResult(validationResult.errorMessage || 'Invalid NFA');
@@ -114,6 +125,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
         
         setNodes(parsedNFA.nodes);
         setFiniteNodes(finalStatesSet);
+        setAllowEpsilon(parsedNFA.allowEpsilon);
         
         // Reset simulation state
         resetSimulation();
@@ -188,58 +200,59 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
     );
   };
 
-  const handleSymbolInputSubmit = (symbol: string): void => {
-    if (!symbol) {
-      console.warn("No transition symbol provided.");
+  const handleSymbolInputSubmit = (transitionInfo: string): void => {
+    if (!transitionInfo) {
+      console.warn("Invalid transition format");
       return;
     }
+    
+    // Verify transition format for NFA
+    if (transitionInfo.length === 0) {
+      console.warn("Transition symbol cannot be empty");
+      return;
+    }
+    
+    // Check if epsilon transition is allowed
+    if (transitionInfo === 'ε' && !allowEpsilon) {
+      setValidationResult(`Error: Epsilon transitions are not allowed in regular NFA mode`);
+      setIsPopupOpen(false);
+      setSelectedNode(null);
+      setTargetNode(null);
+      return;
+    }
+    
     if (!targetNode) {
-      console.warn("No source node was selected.");
+      console.warn("No target node was selected.");
       return;
     }
 
     if (selectedNode) {
-      // No need to check for determinism in NFA
-      // Simply add the transition
-      const symbolsToAdd = symbol.split(',').filter(s => s.trim());
-      
-      // Create a copy of the current nodes
+      // Add the transition
       const updatedNodes = [...nodes];
       const nodeIndex = updatedNodes.findIndex(n => n.id === selectedNode.id);
       
       if (nodeIndex !== -1) {
-        const transitionIndex = updatedNodes[nodeIndex].transitions.findIndex(
-          item => item.targetid === targetNode.id
+        // Check if this exact transition already exists
+        const transitionExists = updatedNodes[nodeIndex].transitions.some(
+          t => t.targetid === targetNode.id && t.label === transitionInfo
         );
         
-        // Create a copy of the node to modify
-        const updatedNode = { ...updatedNodes[nodeIndex] };
-        
-        if (transitionIndex !== -1) {
-          // Update existing transition
-          const updatedTransitions = [...updatedNode.transitions];
-          const existingLabels = updatedTransitions[transitionIndex].label.split(',').filter(s => s.trim());
-          const newLabels = [...new Set([...existingLabels, ...symbolsToAdd])]; // Remove duplicates
+        if (!transitionExists) {
+          // Create a copy of the node to modify
+          const updatedNode = { ...updatedNodes[nodeIndex] };
           
-          updatedTransitions[transitionIndex] = {
-            ...updatedTransitions[transitionIndex],
-            label: newLabels.join(',')
-          };
-          
-          updatedNode.transitions = updatedTransitions;
-        } else {
           // Add new transition
           updatedNode.transitions = [
             ...updatedNode.transitions,
-            { targetid: targetNode.id, label: symbol }
+            { targetid: targetNode.id, label: transitionInfo }
           ];
+          
+          // Replace the node in the array
+          updatedNodes[nodeIndex] = updatedNode;
+          setNodes(updatedNodes);
+        } else {
+          console.warn(`Transition already exists`);
         }
-        
-        // Replace the node in the array
-        updatedNodes[nodeIndex] = updatedNode;
-        
-        // No need for complex validation in NFA
-        setNodes(updatedNodes);
       }
       
       setSelectedNode(null);
@@ -288,6 +301,22 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
     }
   };
 
+  const handleToggleEpsilon = (): void => {
+    // Check if disabling epsilon would invalidate current NFA
+    if (allowEpsilon) {
+      // Check if there are any epsilon transitions in the current NFA
+      const hasEpsilonTransitions = nodes.some(node => 
+        node.transitions.some(transition => transition.label === 'ε')
+      );
+      
+      if (hasEpsilonTransitions) {
+        setValidationResult("Warning: NFA contains epsilon transitions. Disabling epsilon will make these transitions invalid.");
+      }
+    }
+    
+    setAllowEpsilon(!allowEpsilon);
+  };
+
   const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
   
   const resetSimulation = (): void => {
@@ -299,14 +328,33 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
     setHighlightedNodes(new Set());
     setStepIndex(0);
     setHighlightedTransitions([]);
+    setCurrentConfiguration(null);
   };
 
-  // NFA simulation
+  // Initialize the NFA simulation
+  const initializeNFA = (input: string): NFAState => {
+    let initialStates = new Set<string>(['q0']);
+    
+    // Compute epsilon closure of initial state if epsilon transitions are allowed
+    if (allowEpsilon) {
+      initialStates = computeEpsilonClosure(initialStates, nodes, nodeMap);
+    }
+    
+    return {
+      stateIds: initialStates,
+      inputString: input,
+      inputPosition: 0,
+      halted: false,
+      accepted: false
+    };
+  };
+
+  // NFA simulation with fixed epsilon transition handling
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
     
     // Validate the NFA before running
-    const validationResult = validateNFA(nodes, finiteNodes);
+    const validationResult = validateNFA(nodes, finiteNodes, allowEpsilon);
     if (!validationResult.isValid) {
       setValidationResult(validationResult.errorMessage || 'Invalid NFA');
       return;
@@ -320,64 +368,153 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
     setValidationResult(null);
     setStepIndex(0);
     
-    // Start with initial state and compute ε-closure
-    let currentStates = new Set<string>(['q0']);
-    currentStates = computeEpsilonClosure(currentStates, nodes, nodeMap);
-    setCurrNodes(currentStates);
-    setHighlightedNodes(currentStates);
+    // Initialize NFA with input
+    const initialConfig = initializeNFA(inputString);
+    setCurrentConfiguration(initialConfig);
+    setCurrNodes(initialConfig.stateIds);
+    setHighlightedNodes(initialConfig.stateIds);
     
-    // Process each input symbol
-    for (let i = 0; i < inputString.length; i++) {
-      await sleep(1000);
-      const char = inputString[i];
+    let currentConfig = initialConfig;
+    let simulationStep = 0;
+    const MAX_STEPS = 100; // Prevent infinite loops
+    
+    // For visualizing each step
+    while (!currentConfig.halted && simulationStep < MAX_STEPS) {
+      await sleep(500); // Delay for animation
       
-      // Get next states based on current states and input symbol
-      const nextStates = getNextStates(currentStates, char, nodes, nodeMap);
+      // Get the current input symbol
+      const inputSymbol = currentConfig.inputPosition < currentConfig.inputString.length
+        ? currentConfig.inputString[currentConfig.inputPosition]
+        : '';
       
-      // Highlight transitions
-      const newHighlightedTransitions: HighlightedTransition[] = [];
+      if (!inputSymbol) {
+        // End of input, check if in accepting state
+        const isAccepted = Array.from(currentConfig.stateIds).some(stateId => finiteNodes.has(stateId));
+        
+        setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
+        setIsRunning(false);
+        return;
+      }
+      
+      // Track states before taking transitions
+      const currentStates = new Set(currentConfig.stateIds);
+      
+      // First, check if we can move on the current input symbol
+      const nextStatesOnInput = new Set<string>();
+      const inputTransitions: HighlightedTransition[] = [];
       
       currentStates.forEach(stateId => {
-        const state = nodeMap[stateId];
-        if (state) {
-          state.transitions.forEach(transition => {
-            if (transition.label.split(',').some(label => label.trim() === char) && 
-                nextStates.has(transition.targetid)) {
-              newHighlightedTransitions.push({
+        const node = nodeMap[stateId];
+        if (!node) return;
+        
+        // Find transitions on the current input symbol
+        node.transitions.forEach(transition => {
+          if (transition.label === inputSymbol) {
+            nextStatesOnInput.add(transition.targetid);
+            inputTransitions.push({
+              d: transition,
+              target: stateId
+            });
+          }
+        });
+      });
+      
+      // If we found transitions on the input symbol
+      if (nextStatesOnInput.size > 0) {
+        // Compute epsilon closure if needed
+        const nextStatesWithEpsilon = allowEpsilon
+          ? computeEpsilonClosure(nextStatesOnInput, nodes, nodeMap)
+          : nextStatesOnInput;
+        
+        // Create the next configuration
+        const nextConfig: NFAState = {
+          stateIds: nextStatesWithEpsilon,
+          inputString: currentConfig.inputString,
+          inputPosition: currentConfig.inputPosition + 1,
+          halted: false,
+          accepted: false
+        };
+        
+        // Highlight input transitions
+        setHighlightedTransitions(inputTransitions);
+        
+        // Update state
+        currentConfig = nextConfig;
+        setCurrentConfiguration(nextConfig);
+        setCurrNodes(nextConfig.stateIds);
+        setHighlightedNodes(nextConfig.stateIds);
+        setStepIndex(simulationStep + 1);
+        
+        // Check if we reached the end of input
+        if (nextConfig.inputPosition >= inputString.length) {
+          const isAccepted = Array.from(nextConfig.stateIds).some(stateId => finiteNodes.has(stateId));
+          setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
+          setIsRunning(false);
+          return;
+        }
+        
+        simulationStep++;
+        continue;
+      }
+      
+      // If no transitions on input and epsilon transitions are allowed
+      if (allowEpsilon) {
+        const epsilonTransitions: HighlightedTransition[] = [];
+        const epsilonStates = new Set<string>();
+        
+        // Find epsilon transitions from current states
+        currentStates.forEach(stateId => {
+          const node = nodeMap[stateId];
+          if (!node) return;
+          
+          node.transitions.forEach(transition => {
+            if (transition.label === 'ε') {
+              epsilonStates.add(transition.targetid);
+              epsilonTransitions.push({
                 d: transition,
                 target: stateId
               });
             }
           });
+        });
+        
+        if (epsilonStates.size > 0) {
+          // Compute the complete epsilon closure
+          const epsilonClosure = computeEpsilonClosure(epsilonStates, nodes, nodeMap);
+          
+          // Create the next configuration
+          const nextConfig: NFAState = {
+            stateIds: epsilonClosure,
+            inputString: currentConfig.inputString,
+            inputPosition: currentConfig.inputPosition, // Don't advance for epsilon
+            halted: false,
+            accepted: false
+          };
+          
+          // Highlight epsilon transitions
+          setHighlightedTransitions(epsilonTransitions);
+          
+          // Update state
+          currentConfig = nextConfig;
+          setCurrentConfiguration(nextConfig);
+          setCurrNodes(nextConfig.stateIds);
+          setHighlightedNodes(nextConfig.stateIds);
+          setStepIndex(simulationStep + 1);
+          
+          simulationStep++;
+          continue;
         }
-      });
-      
-      setHighlightedTransitions(newHighlightedTransitions);
-      
-      if (nextStates.size === 0) {
-        setShowQuestion(true);
-        setValidationResult(`No transition for '${char}' from current states`);
-        setIsRunning(false);
-        return;
       }
       
-      // Compute ε-closure of next states
-      const nextWithEpsilon = computeEpsilonClosure(nextStates, nodes, nodeMap);
-      
-      await sleep(200);
-      currentStates = nextWithEpsilon;
-      setCurrNodes(currentStates);
-      setHighlightedNodes(currentStates);
-      setStepIndex(i + 1);
+      // If no valid transitions, reject
+      setValidationResult("Input Rejected");
+      setIsRunning(false);
+      return;
     }
     
-    // Check if any final state is in current states
-    const hasAcceptingState = Array.from(currentStates).some(stateId => finiteNodes.has(stateId));
-    
-    if (hasAcceptingState) {
-      setValidationResult("String is Valid");
-    } else {
-      setValidationResult("String is invalid");
+    // Check if we reached MAX_STEPS (potential infinite loop)
+    if (simulationStep >= MAX_STEPS) {
+      setValidationResult("Warning: Reached maximum step count. Possible infinite loop.");
     }
     
     setIsRunning(false);
@@ -386,72 +523,138 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
   const handleStepWise = async (): Promise<void> => {
     if (selectedNode) setSelectedNode(null);
     
-    if (!inputString || !nodes.length) return;
-    
-    const char = inputString[stepIndex];
-    let currentStates = currNodes;
-    
-    if (currentStates.size === 0) {
-      // First step - start with initial state and compute ε-closure
-      currentStates = new Set<string>(['q0']);
-      currentStates = computeEpsilonClosure(currentStates, nodes, nodeMap);
-      setCurrNodes(currentStates);
-      setHighlightedNodes(currentStates);
+    if (!currentConfiguration) {
+      // First step - initialize
+      const initialConfig = initializeNFA(inputString);
+      
+      setCurrentConfiguration(initialConfig);
+      setCurrNodes(initialConfig.stateIds);
+      setHighlightedNodes(initialConfig.stateIds);
       return;
     }
     
-    // Get next states based on current states and input symbol
-    const nextStates = getNextStates(currentStates, char, nodes, nodeMap);
+    // Get the current input symbol
+    const inputSymbol = currentConfiguration.inputPosition < currentConfiguration.inputString.length
+      ? currentConfiguration.inputString[currentConfiguration.inputPosition]
+      : '';
     
-    // Highlight transitions
-    const newHighlightedTransitions: HighlightedTransition[] = [];
+    if (!inputSymbol) {
+      // End of input, check if in accepting state
+      const isAccepted = Array.from(currentConfiguration.stateIds).some(stateId => finiteNodes.has(stateId));
+      
+      setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
+      setIsRunningStepWise(false);
+      return;
+    }
+    
+    // Track states before taking transitions
+    const currentStates = new Set(currentConfiguration.stateIds);
+    
+    // First, check if we can move on the current input symbol
+    const nextStatesOnInput = new Set<string>();
+    const inputTransitions: HighlightedTransition[] = [];
     
     currentStates.forEach(stateId => {
-      const state = nodeMap[stateId];
-      if (state) {
-        state.transitions.forEach(transition => {
-          if (transition.label.split(',').some(label => label.trim() === char) && 
-              nextStates.has(transition.targetid)) {
-            newHighlightedTransitions.push({
+      const node = nodeMap[stateId];
+      if (!node) return;
+      
+      // Find transitions on the current input symbol
+      node.transitions.forEach(transition => {
+        if (transition.label === inputSymbol) {
+          nextStatesOnInput.add(transition.targetid);
+          inputTransitions.push({
+            d: transition,
+            target: stateId
+          });
+        }
+      });
+    });
+    
+    // If we found transitions on the input symbol
+    if (nextStatesOnInput.size > 0) {
+      // Compute epsilon closure if needed
+      const nextStatesWithEpsilon = allowEpsilon
+        ? computeEpsilonClosure(nextStatesOnInput, nodes, nodeMap)
+        : nextStatesOnInput;
+      
+      // Create the next configuration
+      const nextConfig: NFAState = {
+        stateIds: nextStatesWithEpsilon,
+        inputString: currentConfiguration.inputString,
+        inputPosition: currentConfiguration.inputPosition + 1,
+        halted: false,
+        accepted: false
+      };
+      
+      // Highlight input transitions
+      setHighlightedTransitions(inputTransitions);
+      
+      // Update state
+      setCurrentConfiguration(nextConfig);
+      setCurrNodes(nextConfig.stateIds);
+      setHighlightedNodes(nextConfig.stateIds);
+      setStepIndex(prevStepIndex => prevStepIndex + 1);
+      
+      // Check if we reached the end of input
+      if (nextConfig.inputPosition >= inputString.length) {
+        const isAccepted = Array.from(nextConfig.stateIds).some(stateId => finiteNodes.has(stateId));
+        setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
+        setIsRunningStepWise(false);
+      }
+      
+      return;
+    }
+    
+    // If no transitions on input and epsilon transitions are allowed
+    if (allowEpsilon) {
+      const epsilonTransitions: HighlightedTransition[] = [];
+      const epsilonStates = new Set<string>();
+      
+      // Find epsilon transitions from current states
+      currentStates.forEach(stateId => {
+        const node = nodeMap[stateId];
+        if (!node) return;
+        
+        node.transitions.forEach(transition => {
+          if (transition.label === 'ε') {
+            epsilonStates.add(transition.targetid);
+            epsilonTransitions.push({
               d: transition,
               target: stateId
             });
           }
         });
-      }
-    });
-    
-    setHighlightedTransitions(newHighlightedTransitions);
-    
-    if (nextStates.size === 0) {
-      setIsRunningStepWise(false);
-      setShowQuestion(true);
-      setValidationResult(`No transition for '${char}' from current states`);
-      return;
-    }
-    
-    // Compute ε-closure of next states
-    const nextWithEpsilon = computeEpsilonClosure(nextStates, nodes, nodeMap);
-    
-    await sleep(200);
-    setCurrNodes(nextWithEpsilon);
-    setHighlightedNodes(nextWithEpsilon);
-    
-    // Step wise finished
-    if (stepIndex === inputString.length - 1 || !inputString) {
-      setIsRunningStepWise(false);
+      });
       
-      // Check if any final state is in current states
-      const hasAcceptingState = Array.from(nextWithEpsilon).some(stateId => finiteNodes.has(stateId));
-      
-      if (hasAcceptingState) {
-        setValidationResult("String is Valid");
-      } else {
-        setValidationResult("String is invalid");
+      if (epsilonStates.size > 0) {
+        // Compute the complete epsilon closure
+        const epsilonClosure = computeEpsilonClosure(epsilonStates, nodes, nodeMap);
+        
+        // Create the next configuration
+        const nextConfig: NFAState = {
+          stateIds: epsilonClosure,
+          inputString: currentConfiguration.inputString,
+          inputPosition: currentConfiguration.inputPosition, // Don't advance for epsilon
+          halted: false,
+          accepted: false
+        };
+        
+        // Highlight epsilon transitions
+        setHighlightedTransitions(epsilonTransitions);
+        
+        // Update state
+        setCurrentConfiguration(nextConfig);
+        setCurrNodes(nextConfig.stateIds);
+        setHighlightedNodes(nextConfig.stateIds);
+        setStepIndex(prevStepIndex => prevStepIndex + 1);
+        
+        return;
       }
     }
     
-    setStepIndex(prevStepIndex => prevStepIndex + 1);
+    // If no valid transitions, reject
+    setValidationResult("Input Rejected");
+    setIsRunningStepWise(false);
   };
 
   const onStepWiseClick = (): void => {
@@ -461,7 +664,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
       handleStepWise();
     } else {
       // Validate the NFA before running
-      const validationResult = validateNFA(nodes, finiteNodes);
+      const validationResult = validateNFA(nodes, finiteNodes, allowEpsilon);
       if (!validationResult.isValid) {
         setValidationResult(validationResult.errorMessage || 'Invalid NFA');
         return;
@@ -538,17 +741,18 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
 
   // Calculate all input symbols used in the transitions
   const getInputSymbols = (): string[] => {
-    const symbolsSet = new Set<string>();
+    const inputSymbolsSet = new Set<string>();
+    
     nodes.forEach(node => {
       node.transitions.forEach(transition => {
-        transition.label.split(',').forEach(symbol => {
-          if (symbol.trim() && symbol.trim() !== 'ε') {
-            symbolsSet.add(symbol.trim());
-          }
-        });
+        // Skip epsilon transitions for input alphabet
+        if (transition.label && transition.label !== 'ε') {
+          inputSymbolsSet.add(transition.label);
+        }
       });
     });
-    return Array.from(symbolsSet).sort();
+    
+    return Array.from(inputSymbolsSet).sort();
   };
 
   /**
@@ -557,7 +761,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
   const shareNFA = (): void => {
     try {
       // Create a URL with the encoded NFA
-      const encodedNFA = encodeNFAForURL(nodes, finiteNodes);
+      const encodedNFA = encodeNFAForURL(nodes, finiteNodes, allowEpsilon);
       const url = `${window.location.origin}/simulator/nfa?nfa=${encodedNFA}`;
       
       // Copy to clipboard
@@ -574,7 +778,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
    * Validates the current NFA and updates the validation result
    */
   const validateCurrentNFA = (): boolean => {
-    const result = validateNFA(nodes, finiteNodes);
+    const result = validateNFA(nodes, finiteNodes, allowEpsilon);
     if (!result.isValid) {
       setValidationResult(result.errorMessage || 'Invalid NFA');
       return false;
@@ -586,6 +790,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
+
+  const inputSymbols = getInputSymbols();
 
   return (
     <div 
@@ -612,14 +818,19 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
         onReset={resetSimulation}
         onLoadJson={toggleJsonInput}
         onValidate={validateCurrentNFA}
+        onToggleEpsilon={handleToggleEpsilon}
+        allowEpsilon={allowEpsilon}
       />
       
       <NFAInfoPanel 
         states={nodes.map(node => node.id)} 
-        initialState={nodes.length > 0 ? nodes[0].id : null}
+        initialState={nodes.length > 0 ? 'q0' : null}
         finalStates={Array.from(finiteNodes)}
-        inputSymbols={getInputSymbols()}
+        inputSymbols={inputSymbols}
         currentStates={Array.from(currNodes)}
+        currentPosition={currentConfiguration ? currentConfiguration.inputPosition : 0}
+        inputString={inputString}
+        allowEpsilon={allowEpsilon}
       />
       
       <TestInputPanel 
@@ -696,6 +907,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialNFA }) => 
           isOpen={isPopupOpen}
           onClose={handleInputClose}
           onSubmit={handleSymbolInputSubmit}
+          allowEpsilon={allowEpsilon}
         />
       )}
       

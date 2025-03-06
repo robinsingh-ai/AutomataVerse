@@ -6,21 +6,17 @@ import dynamic from 'next/dynamic';
 import ControlPanel from './components/ControlPanel';
 import InputPopup from './components/InputPopup';
 import StackPanel from './components/StackPanel';
-import { Node, NodeMap, HighlightedTransition, StageProps, PDAState } from './type';
+import { Node, NodeMap, HighlightedTransition, StageProps, PDAState, Stack } from './type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
 import PDAInfoPanel from './components/PDAInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
 import { 
-  deserializePDA, 
-  SerializedPDA, 
-  serializePDA, 
+  deserializePDA,
   encodePDAForURL, 
   validatePDA, 
-  getNextConfigurations, 
-  applyTransition, 
-  canTakeTransition 
+  getNextConfigurations
 } from './utils/pdaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
@@ -34,11 +30,11 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
   ssr: false,
 });
 
-interface AutomataSimulatorProps {
+interface PushdownAutomataSimulatorProps {
   initialPDA?: string; // Optional JSON string to initialize the PDA
 }
 
-const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => {
+const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPDA }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -67,10 +63,15 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
   const [isClient, setIsClient] = useState(false);
   const [jsonInputOpen, setJsonInputOpen] = useState<boolean>(false);
   const [jsonInput, setJsonInput] = useState<string>('');
-  const [stack, setStack] = useState<string[]>(['Z']); // Initialize with empty stack symbol Z
-  const [configurations, setConfigurations] = useState<PDAState[]>([]);
+  const [stack, setStack] = useState<Stack>({ content: [] });
+  const [currentConfiguration, setCurrentConfiguration] = useState<PDAState | null>(null);
   
   const stageRef = useRef<Konva.Stage>(null);
+
+  // Function to create an empty stack
+  function createEmptyStack(): Stack {
+    return { content: ['Z'] }; // Initialize with bottom marker 'Z'
+  }
 
   // Set isClient to true when component mounts
   useEffect(() => {
@@ -201,8 +202,15 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
   };
 
   const handleSymbolInputSubmit = (transitionInfo: string): void => {
-    if (!transitionInfo || !transitionInfo.split(',').every(part => part.trim())) {
-      console.warn("Invalid transition format. Format should be 'inputSymbol,popSymbol,pushSymbol'");
+    if (!transitionInfo) {
+      console.warn("Invalid transition format");
+      return;
+    }
+    
+    // Verify transition format: "input,pop,push"
+    const parts = transitionInfo.split(',');
+    if (parts.length !== 3) {
+      console.warn("Invalid transition format. Expected format is 'input,pop,push'");
       return;
     }
     
@@ -212,7 +220,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
     }
 
     if (selectedNode) {
-      // For PDA, we just add the transition with the formatted info
+      // Add the transition with the formatted info
       const updatedNodes = [...nodes];
       const nodeIndex = updatedNodes.findIndex(n => n.id === selectedNode.id);
       
@@ -294,13 +302,25 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
     setHighlightedNodes(new Set());
     setStepIndex(0);
     setHighlightedTransitions([]);
-    setStack(['Z']); // Reset stack to initial state with empty stack symbol
-    setConfigurations([]); // Reset configurations
+    
+    // Reset stack
+    setStack(createEmptyStack());
+    setCurrentConfiguration(null);
+  };
+
+  // Initialize the PDA simulation
+  const initializePDA = (input: string): PDAState => {
+    return {
+      stateId: 'q0',
+      inputString: input,
+      inputPosition: 0,
+      stack: createEmptyStack(),
+      halted: false,
+      accepted: false
+    };
   };
 
   // PDA simulation
-  // In AutomataSimulator.tsx, update the handleRun method:
-
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
     
@@ -318,240 +338,175 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
     setHighlightedTransitions([]);
     setValidationResult(null);
     setStepIndex(0);
-    setStack(['Z']); // Start with empty stack (Z symbol)
+    
+    // Initialize PDA with input
+    const initialConfig = initializePDA(inputString);
+    setCurrentConfiguration(initialConfig);
+    setStack(initialConfig.stack);
+    setCurrNodes(new Set([initialConfig.stateId]));
+    setHighlightedNodes(new Set([initialConfig.stateId]));
+    
+    // For visual simulation, we'll do a simple step-by-step approach
+    // (the real acceptance test uses a more sophisticated BFS algorithm)
+    
+    // Maximum step count to prevent infinite loops
+    const MAX_STEPS = 100;
+    let stepCount = 0;
     
     // Start with initial configuration
-    let currentConfigs: PDAState[] = [{
-      stateId: 'q0',
-      stackContent: ['Z'],
-      inputPosition: 0
-    }];
+    let currentConfig = initialConfig;
     
-    setCurrNodes(new Set([currentConfigs[0].stateId]));
-    setHighlightedNodes(new Set([currentConfigs[0].stateId]));
-    
-    // Process each input symbol
-    for (let i = 0; i <= inputString.length; i++) {
-      if (i < inputString.length) {
-        await sleep(1000);
-      }
+    // Run the PDA until it halts or reaches max steps
+    while (stepCount < MAX_STEPS) {
+      await sleep(500); // Delay for animation
       
-      // If we've processed all input, check for epsilon transitions
-      if (i === inputString.length) {
-        // Try epsilon transitions after all input is consumed
-        const epsilonConfigs = getNextConfigurations(currentConfigs, inputString, nodes, nodeMap, true);
-        
-        if (epsilonConfigs.length > 0) {
-          const newHighlightedTransitions: HighlightedTransition[] = [];
-          const newHighlightedNodes = new Set<string>();
-          
-          // For each epsilon configuration, highlight the transition
-          for (const nextConfig of epsilonConfigs) {
-            newHighlightedNodes.add(nextConfig.stateId);
-            
-            // Find the source configuration
-            for (const currConfig of currentConfigs) {
-              const sourceNode = nodeMap[currConfig.stateId];
-              if (sourceNode) {
-                // Check each transition from the source node
-                for (const transition of sourceNode.transitions) {
-                  if (transition.targetid === nextConfig.stateId && 
-                      transition.label.split(',')[0] === 'ε') {
-                    newHighlightedTransitions.push({
-                      d: transition,
-                      target: currConfig.stateId
-                    });
-                  }
-                }
-              }
-            }
-          }
-          
-          setHighlightedTransitions(newHighlightedTransitions);
-          setHighlightedNodes(newHighlightedNodes);
-          
-          // Update the configurations with epsilon transitions
-          currentConfigs = epsilonConfigs;
-          setCurrNodes(new Set(epsilonConfigs.map(cfg => cfg.stateId)));
-          
-          await sleep(500);
-        }
-        
-        // Now check final state
-        const hasAcceptingState = currentConfigs.some(cfg => finiteNodes.has(cfg.stateId));
-        
-        if (hasAcceptingState) {
-          setValidationResult("String is Valid");
-        } else {
-          setValidationResult("String is invalid");
-        }
-        
-        setIsRunning(false);
-        return;
-      }
+      // Get next configurations (could be multiple due to non-determinism)
+      const nextConfigs = getNextConfigurations(currentConfig, nodes, nodeMap, finiteNodes);
       
-      // Get all possible next configurations for the current symbol
-      const nextConfigs = getNextConfigurations(currentConfigs, inputString, nodes, nodeMap);
-      
+      // If no valid transitions exist
       if (nextConfigs.length === 0) {
-        setShowQuestion(true);
-        setValidationResult(`No valid transitions at position ${i} - String is invalid`);
+        // Check if we've reached the end of the input
+        if (currentConfig.inputPosition >= currentConfig.inputString.length) {
+          if (finiteNodes.has(currentConfig.stateId)) {
+            setValidationResult("Input Accepted");
+          } else {
+            setValidationResult("Input Rejected");
+          }
+        } else {
+          setValidationResult("Input Rejected");
+        }
+        
         setIsRunning(false);
         return;
       }
       
-      // Highlight transitions that were taken
-      const newHighlightedTransitions: HighlightedTransition[] = [];
-      const newHighlightedNodes = new Set<string>();
+      // For visualization, we'll take the first possible transition
+      // (real acceptance test handles all possibilities)
+      const nextConfig = nextConfigs[0];
       
-      // For each next configuration, find which transition was taken
-      for (const nextConfig of nextConfigs) {
-        newHighlightedNodes.add(nextConfig.stateId);
+      // Check if we're halted
+      if (nextConfig.halted) {
+        if (nextConfig.accepted) {
+          setValidationResult("Input Accepted");
+        } else {
+          setValidationResult("Input Rejected");
+        }
         
-        // Find the source configuration
-        for (const currConfig of currentConfigs) {
-          const sourceNode = nodeMap[currConfig.stateId];
-          if (sourceNode) {
-            // Check each transition from the source node
-            for (const transition of sourceNode.transitions) {
-              if (transition.targetid === nextConfig.stateId) {
-                // Check if this transition could have led to this configuration
-                const currentSymbol = currConfig.inputPosition < inputString.length 
-                  ? inputString[currConfig.inputPosition] 
-                  : null;
-                const stackTop = currConfig.stackContent.length > 0 
-                  ? currConfig.stackContent[currConfig.stackContent.length - 1] 
-                  : 'Z';
-                
-                if (canTakeTransition(transition.label, currentSymbol, stackTop)) {
-                  newHighlightedTransitions.push({
-                    d: transition,
-                    target: currConfig.stateId
-                  });
-                }
-              }
-            }
-          }
+        setIsRunning(false);
+        return;
+      }
+      
+      // Highlight the transition
+      const currentNode = nodeMap[currentConfig.stateId];
+      
+      if (currentNode) {
+        // Find the transition that was taken
+        const transition = currentNode.transitions.find(t => 
+          t.targetid === nextConfig.stateId
+        );
+        
+        if (transition) {
+          setHighlightedTransitions([{
+            d: transition,
+            target: currentConfig.stateId
+          }]);
         }
       }
       
-      setHighlightedTransitions(newHighlightedTransitions);
-      setHighlightedNodes(newHighlightedNodes);
+      // Update the configuration
+      currentConfig = nextConfig;
+      setCurrentConfiguration(currentConfig);
+      setCurrNodes(new Set([currentConfig.stateId]));
+      setHighlightedNodes(new Set([currentConfig.stateId]));
+      setStack(currentConfig.stack);
+      setStepIndex(stepCount + 1);
       
-      // Update the stack display with the stack from the first configuration
-      if (nextConfigs.length > 0) {
-        setStack([...nextConfigs[0].stackContent]);
+      // If we've consumed all input and reached a final state, we're done
+      if (currentConfig.inputPosition >= currentConfig.inputString.length && 
+          finiteNodes.has(currentConfig.stateId)) {
+        setValidationResult("Input Accepted");
+        setIsRunning(false);
+        return;
       }
       
-      // Update current state set for display
-      setCurrNodes(new Set(nextConfigs.map(cfg => cfg.stateId)));
-      
-      // Update for next iteration
-      currentConfigs = nextConfigs;
-      setStepIndex(i + 1);
-      
-      await sleep(500);
+      stepCount++;
     }
+    
+    // Check if we reached MAX_STEPS (potential infinite loop)
+    if (stepCount >= MAX_STEPS) {
+      setValidationResult("Halting problem: Reached maximum step count");
+    }
+    
+    setIsRunning(false);
   };
 
   const handleStepWise = async (): Promise<void> => {
     if (selectedNode) setSelectedNode(null);
     
-    if (!inputString || !nodes.length) return;
-    
-    // First step - initialize
-    if (configurations.length === 0) {
-      const initialConfig: PDAState = {
-        stateId: 'q0',
-        stackContent: ['Z'],
-        inputPosition: 0
-      };
+    if (!currentConfiguration) {
+      // First step - initialize
+      const initialConfig = initializePDA(inputString);
       
-      setConfigurations([initialConfig]);
+      setCurrentConfiguration(initialConfig);
       setCurrNodes(new Set(['q0']));
       setHighlightedNodes(new Set(['q0']));
-      setStack(['Z']);
+      setStack(initialConfig.stack);
       return;
     }
     
-    // Get current configurations
-    const currentConfigs = configurations;
+    // Get next configurations
+    const nextConfigs = getNextConfigurations(currentConfiguration, nodes, nodeMap, finiteNodes);
     
-    // Get next configurations based on current ones
-    const nextConfigs = getNextConfigurations(currentConfigs, inputString, nodes, nodeMap);
-    
+    // If no valid transitions exist or we've halted
     if (nextConfigs.length === 0) {
+      // Check if we're in a final state and have consumed all input
+      if (currentConfiguration.inputPosition >= currentConfiguration.inputString.length && 
+          finiteNodes.has(currentConfiguration.stateId)) {
+        setValidationResult("Input Accepted");
+      } else {
+        setValidationResult("Input Rejected");
+      }
+      
       setIsRunningStepWise(false);
-      setShowQuestion(true);
-      setValidationResult('No valid transitions');
       return;
     }
     
-    // Highlight transitions
-    const newHighlightedTransitions: HighlightedTransition[] = [];
-    const newHighlightedNodes = new Set<string>();
+    // For visualization, take the first possible transition
+    const nextConfig = nextConfigs[0];
     
-    // For each next configuration, find which transition was taken
-    for (const nextConfig of nextConfigs) {
-      newHighlightedNodes.add(nextConfig.stateId);
-      
-      // Find the source configuration
-      for (const currConfig of currentConfigs) {
-        const sourceNode = nodeMap[currConfig.stateId];
-        if (sourceNode) {
-          // Check each transition from the source node
-          for (const transition of sourceNode.transitions) {
-            if (transition.targetid === nextConfig.stateId) {
-              // Check if this transition could have led to this configuration
-              const currentSymbol = currConfig.inputPosition < inputString.length 
-                ? inputString[currConfig.inputPosition] 
-                : null;
-              const stackTop = currConfig.stackContent.length > 0 
-                ? currConfig.stackContent[currConfig.stackContent.length - 1] 
-                : 'Z';
-              
-              if (canTakeTransition(transition.label, currentSymbol, stackTop)) {
-                newHighlightedTransitions.push({
-                  d: transition,
-                  target: currConfig.stateId
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    setHighlightedTransitions(newHighlightedTransitions);
-    setHighlightedNodes(newHighlightedNodes);
-    
-    // Update configurations for next step
-    setConfigurations(nextConfigs);
-    
-    // Update current states for display
-    setCurrNodes(new Set(nextConfigs.map(cfg => cfg.stateId)));
-    
-    // Update the stack display with the stack from the first configuration
-    if (nextConfigs.length > 0) {
-      setStack([...nextConfigs[0].stackContent]);
-    }
-    
-    // Check if we've reached the end of the input string
-    const allInputConsumed = nextConfigs.every(cfg => cfg.inputPosition >= inputString.length);
-    
-    if (allInputConsumed) {
-      setIsRunningStepWise(false);
-      
-      // Check if any configuration ends in an accepting state
-      const hasAcceptingState = nextConfigs.some(cfg => finiteNodes.has(cfg.stateId));
-      
-      if (hasAcceptingState) {
-        setValidationResult("String is Valid");
+    // Check if we've halted
+    if (nextConfig.halted) {
+      if (nextConfig.accepted) {
+        setValidationResult("Input Accepted");
       } else {
-        setValidationResult("String is invalid");
+        setValidationResult("Input Rejected");
+      }
+      
+      setIsRunningStepWise(false);
+      return;
+    }
+    
+    // Highlight the transition
+    const currentNode = nodeMap[currentConfiguration.stateId];
+    
+    if (currentNode) {
+      const transition = currentNode.transitions.find(t => 
+        t.targetid === nextConfig.stateId
+      );
+      
+      if (transition) {
+        setHighlightedTransitions([{
+          d: transition,
+          target: currentConfiguration.stateId
+        }]);
       }
     }
     
+    // Update the configuration
+    setCurrentConfiguration(nextConfig);
+    setCurrNodes(new Set([nextConfig.stateId]));
+    setHighlightedNodes(new Set([nextConfig.stateId]));
+    setStack(nextConfig.stack);
     setStepIndex(prevStepIndex => prevStepIndex + 1);
   };
 
@@ -637,29 +592,29 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
     }, 100);
   };
 
-  // Calculate all input symbols and stack symbols used in the transitions
+  // Calculate all input and stack symbols used in the transitions
   const getSymbols = (): { inputSymbols: string[], stackSymbols: string[] } => {
     const inputSymbolsSet = new Set<string>();
-    const stackSymbolsSet = new Set<string>(['Z']); // Always include the empty stack symbol Z
+    const stackSymbolsSet = new Set<string>(['Z']); // Always include the bottom marker
     
     nodes.forEach(node => {
       node.transitions.forEach(transition => {
         const [inputSym, popSym, pushSym] = transition.label.split(',');
         
         // Add non-epsilon input symbols
-        if (inputSym && inputSym !== 'ε' && inputSym !== '') {
+        if (inputSym && inputSym !== 'ε') {
           inputSymbolsSet.add(inputSym);
         }
         
-        // Add stack symbols from pop and push operations
-        if (popSym && popSym !== 'ε' && popSym !== '') {
+        // Add stack symbols (pop and push)
+        if (popSym && popSym !== 'ε') {
           stackSymbolsSet.add(popSym);
         }
         
-        if (pushSym && pushSym !== 'ε' && pushSym !== '') {
-          // Push symbols can be multiple characters, each representing a symbol
-          for (const symbol of pushSym) {
-            stackSymbolsSet.add(symbol);
+        if (pushSym && pushSym !== 'ε') {
+          // Add each character of push string as a stack symbol
+          for (const sym of pushSym) {
+            stackSymbolsSet.add(sym);
           }
         }
       });
@@ -743,11 +698,14 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialPDA }) => 
         finalStates={Array.from(finiteNodes)}
         inputSymbols={inputSymbols}
         stackSymbols={stackSymbols}
-        currentStates={Array.from(currNodes)}
-        stackContent={stack}
+        currentState={Array.from(currNodes)[0] || null}
+        currentPosition={currentConfiguration ? currentConfiguration.inputPosition : 0}
+        inputString={inputString}
       />
       
-      <StackPanel stack={stack} />
+      <StackPanel 
+        stack={stack} 
+      />
       
       <TestInputPanel 
         onTestInput={handleTestInput} 

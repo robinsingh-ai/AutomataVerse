@@ -20,7 +20,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   stepIndex,
   onReset,
   onLoadJson,
-  onValidate
+  onValidate,
+  onToggleEpsilon,
+  allowEpsilon
 }) => {
   const { theme } = useTheme();
   
@@ -36,7 +38,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}
           >
-            Add Node
+            Add State
           </button>
           
           {selectedNode && (
@@ -48,16 +50,31 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   : 'bg-gray-600 hover:bg-gray-700 text-white'
               }`}
             >
-              Toggle Final State
+              Toggle Accepting State
             </button>
           )}
+          
+          <button
+            onClick={onToggleEpsilon}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              allowEpsilon
+                ? theme === 'dark'
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : 'bg-purple-500 hover:bg-purple-600 text-white'
+                : theme === 'dark'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+            }`}
+          >
+            {allowEpsilon ? 'Disable ε-Transitions' : 'Enable ε-Transitions'}
+          </button>
           
           <button
             onClick={onLoadJson}
             className={`w-full font-semibold py-2 px-4 rounded ${
               theme === 'dark'
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-purple-500 hover:bg-purple-600 text-white'
+                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
             }`}
           >
             Load NFA from JSON
@@ -67,8 +84,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             onClick={onValidate}
             className={`w-full font-semibold py-2 px-4 rounded ${
               theme === 'dark'
-                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
             }`}
           >
             Validate NFA
@@ -90,6 +107,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               theme === 'dark'
                 ? 'bg-gray-700 border-gray-600 text-white'
                 : 'bg-white border-gray-300 text-gray-900'
+            } ${
+              (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           />
         </div>
@@ -149,9 +168,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         
         {validationResult && (
           <div className={`mt-4 p-2 rounded ${
-            validationResult.includes("Valid") 
+            validationResult.includes("Valid") && !validationResult.includes("Invalid")
               ? theme === 'dark' ? "bg-green-800 text-green-100" : "bg-green-100 text-green-800"
-              : theme === 'dark' ? "bg-red-800 text-red-100" : "bg-red-100 text-red-800"
+              : validationResult.includes("Accept")
+                ? theme === 'dark' ? "bg-green-800 text-green-100" : "bg-green-100 text-green-800"
+                : validationResult.includes("Reject")
+                  ? theme === 'dark' ? "bg-red-800 text-red-100" : "bg-red-100 text-red-800"
+                  : theme === 'dark' ? "bg-red-800 text-red-100" : "bg-red-100 text-red-800"
           }`}>
             {validationResult}
           </div>
@@ -160,26 +183,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         {isRunningStepWise && inputString && (
           <div className="mt-4">
             <p className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Current Index: {stepIndex}
+              Step: {stepIndex}
             </p>
-            <div className="flex flex-wrap gap-1">
-              {inputString.split('').map((char, index) => (
-                <span
-                  key={index}
-                  className={`inline-block w-8 h-8 flex items-center justify-center border rounded
-                    ${index === stepIndex 
-                      ? theme === 'dark' 
-                        ? 'bg-red-600 text-white border-red-700'
-                        : 'bg-red-500 text-white border-red-600'
-                      : theme === 'dark'
-                        ? 'bg-gray-700 text-white border-gray-600'
-                        : 'bg-white text-black border-gray-300'
-                    }`}
-                >
-                  {char}
-                </span>
-              ))}
-            </div>
           </div>
         )}
       </div>

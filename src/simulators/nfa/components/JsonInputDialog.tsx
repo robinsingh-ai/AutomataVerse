@@ -37,7 +37,7 @@ const JsonInputDialog: React.FC<JsonInputDialogProps> = ({
         <h2 className={`text-xl font-semibold mb-4 ${
           theme === 'dark' ? 'text-white' : 'text-gray-900'
         }`}>
-          Load NFA from JSON
+          Load Nondeterministic Finite Automaton from JSON
         </h2>
         
         <form onSubmit={handleSubmit}>
@@ -60,7 +60,7 @@ const JsonInputDialog: React.FC<JsonInputDialogProps> = ({
                   ? 'bg-gray-700 border-gray-600 text-white' 
                   : 'bg-white border-gray-300 text-gray-900'
               }`}
-              placeholder='{"nodes": [...], "finalStates": [...]}'
+              placeholder='{"nodes": [...], "finalStates": [...], "allowEpsilon": true}'
             />
           </div>
           

@@ -37,7 +37,7 @@ const JsonInputDialog: React.FC<JsonInputDialogProps> = ({
         <h2 className={`text-xl font-semibold mb-4 ${
           theme === 'dark' ? 'text-white' : 'text-gray-900'
         }`}>
-          Load DFA from JSON
+          Load Finite Automaton from JSON
         </h2>
         
         <form onSubmit={handleSubmit}>
@@ -93,4 +93,4 @@ const JsonInputDialog: React.FC<JsonInputDialogProps> = ({
   );
 };
 
-export default JsonInputDialog; 
+export default JsonInputDialog;

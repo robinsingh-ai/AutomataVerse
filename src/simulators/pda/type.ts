@@ -1,12 +1,10 @@
 import { KonvaEventObject } from 'konva/lib/Node';
 
-// PDA Transition includes stack operations
 export interface Transition {
   targetid: string;
-  // Format: "inputSymbol,popSymbol,pushSymbol"
-  // Empty string or ε for epsilon transitions (no input consumed)
-  // Z for empty stack symbol
-  // Multiple symbols for pushing to stack are concatenated in order
+  // Format: "input,pop,push"
+  // ε for epsilon transitions
+  // Format example: "a,Z,AZ" means read 'a', pop 'Z', push 'AZ'
   label: string;
 }
 
@@ -52,7 +50,7 @@ export interface ControlPanelProps {
   isRunningStepWise: boolean;
   showGrid: boolean;
   stepIndex: number;
-  stack: string[];
+  stack: Stack;
 }
 
 // Input Popup Props for PDA
@@ -69,11 +67,19 @@ export interface GridProps {
   stageProps: StageProps;
 }
 
+// Stack representation
+export interface Stack {
+  content: string[];
+}
+
 // PDA State - represents the current configuration
 export interface PDAState {
   stateId: string;
-  stackContent: string[];
+  inputString: string;
   inputPosition: number;
+  stack: Stack;
+  halted: boolean;
+  accepted: boolean;
 }
 
 // Node Canvas Props

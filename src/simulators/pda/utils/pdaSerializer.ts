@@ -1,4 +1,4 @@
-import { Node, PDAState } from '../type';
+import { Node, PDAState, Stack } from '../type';
 
 export interface SerializedPDA {
   nodes: Node[];
@@ -55,7 +55,15 @@ export const validatePDA = (nodes: Node[], finalStates: Set<string>): Validation
     }
   }
 
-  // 5. Check if all target states exist
+  // 5. Initial state (q0) must exist
+  if (!stateIds.has('q0')) {
+    return {
+      isValid: false,
+      errorMessage: "Error: Initial state 'q0' is required"
+    };
+  }
+
+  // 6. Check if all target states exist and transition format is valid
   for (const node of nodes) {
     for (const transition of node.transitions) {
       if (!stateIds.has(transition.targetid)) {
@@ -65,14 +73,19 @@ export const validatePDA = (nodes: Node[], finalStates: Set<string>): Validation
         };
       }
       
-      // 6. Validate transition format
-      // Each transition should have the format: inputSymbol,popSymbol,pushSymbol
+      // Validate transition format for PDA: "input,pop,push"
       const parts = transition.label.split(',');
+      const [transInput, popSymbol] = parts;
+      
+      if (transInput === 'ε' || popSymbol === 'ε') {
+        continue;
+      }
+      
       if (parts.length !== 3) {
         return {
           isValid: false,
           errorMessage: `Error: Invalid transition format '${transition.label}' from state '${node.id}'. 
-                         Format should be 'inputSymbol,popSymbol,pushSymbol'`
+                       Format should be 'input,pop,push'`
         };
       }
     }
@@ -151,22 +164,52 @@ export const decodePDAFromURL = (encodedPDA: string): SerializedPDA | null => {
 };
 
 /**
- * Checks if a transition can be taken given the current input and stack symbols
+ * Checks if a transition can be taken given the current input and stack
  */
 export const canTakeTransition = (
-  transition: string,
-  currentSymbol: string | null,
-  stackTop: string | null
+  transition: Transition,
+  inputSymbol: string,
+  stack: Stack
 ): boolean => {
-  const [inputSymbol, popSymbol] = transition.split(',');
+  const [transInput, popSymbol] = transition.label.split(',');
   
-  // Check if the input symbol matches (or is epsilon)
-  const inputMatches = inputSymbol === 'ε' || inputSymbol === '' || inputSymbol === currentSymbol;
+  // Check if input matches (or if it's an epsilon transition)
+  const inputMatches = transInput === 'ε' || transInput === inputSymbol;
   
-  // Check if the stack symbol matches
-  const stackMatches = popSymbol === 'ε' || popSymbol === '' || popSymbol === stackTop;
+  // Check if the stack has the required symbol to pop
+  const stackMatches = stack.content.length > 0 && (
+    // If popSymbol is ε, we don't need to pop anything
+    popSymbol === 'ε' || stack.content[stack.content.length - 1] === popSymbol
+  );
   
   return inputMatches && stackMatches;
+};
+
+/**
+ * Applies a transition to the stack
+ */
+export const applyStackTransition = (
+  stack: Stack,
+  operation: string
+): Stack => {
+  const [, popSymbol, pushSymbols] = operation.split(',');
+  const newStack: Stack = {
+    content: [...stack.content]
+  };
+  
+  // Pop the symbol if it's not epsilon
+  if (popSymbol !== 'ε' && newStack.content.length > 0) {
+    newStack.content.pop();
+  }
+  
+  // Push new symbols (if any) - in reverse order since stack is LIFO
+  if (pushSymbols !== 'ε') {
+    for (let i = pushSymbols.length - 1; i >= 0; i--) {
+      newStack.content.push(pushSymbols[i]);
+    }
+  }
+  
+  return newStack;
 };
 
 /**
@@ -174,85 +217,136 @@ export const canTakeTransition = (
  */
 export const applyTransition = (
   currentState: PDAState,
-  transition: string,
-  targetStateId: string
+  transition: Transition
 ): PDAState => {
-  const [inputSymbol, popSymbol, pushSymbols] = transition.split(',');
-  const newStack = [...currentState.stackContent];
+  const [inputSymbol] = transition.label.split(',');
   
-  // Perform stack operations
-  // 1. Pop the top symbol if needed
-  if (popSymbol !== 'ε' && popSymbol !== '') {
-    if (newStack.length > 0 && newStack[newStack.length - 1] === popSymbol) {
-      newStack.pop();
-    }
-  }
+  // Create new stack by applying the transition
+  const newStack = applyStackTransition(currentState.stack, transition.label);
   
-  // 2. Push new symbols to the stack (if any)
-  if (pushSymbols !== 'ε' && pushSymbols !== '') {
-    // Push symbols in reverse order so the first one ends up on top
-    for (let i = pushSymbols.length - 1; i >= 0; i--) {
-      newStack.push(pushSymbols[i]);
-    }
-  }
-  
-  // 3. Advance input position if an input symbol was consumed
-  const newInputPosition = inputSymbol !== 'ε' && inputSymbol !== '' 
-    ? currentState.inputPosition + 1 
-    : currentState.inputPosition;
+  // Advance input position only if not an epsilon transition
+  const newPosition = 
+    inputSymbol === 'ε' 
+      ? currentState.inputPosition 
+      : currentState.inputPosition + 1;
   
   return {
-    stateId: targetStateId,
-    stackContent: newStack,
-    inputPosition: newInputPosition
+    stateId: transition.targetid,
+    inputString: currentState.inputString,
+    inputPosition: newPosition,
+    stack: newStack,
+    halted: false,
+    accepted: false
   };
 };
 
 /**
- * Get all possible next PDA configurations from a set of current configurations
+ * Gets the next PDA configuration
+ * Returns all possible next configurations (for non-deterministic PDAs)
  */
 export const getNextConfigurations = (
-  currentConfigs: PDAState[],
-  inputString: string,
+  currentConfig: PDAState,
   nodes: Node[],
   nodeMap: Record<string, Node>,
-  epsilonOnly: boolean = false
+  finalStates: Set<string>
 ): PDAState[] => {
-  const nextConfigs: PDAState[] = [];
+  const currentNode = nodeMap[currentConfig.stateId];
   
-  for (const config of currentConfigs) {
-    const state = nodeMap[config.stateId];
-    const currentSymbol = config.inputPosition < inputString.length 
-      ? inputString[config.inputPosition] 
-      : null;
-    const stackTop = config.stackContent.length > 0 
-      ? config.stackContent[config.stackContent.length - 1] 
-      : 'Z';  // Z represents the empty stack
+  if (!currentNode) {
+    return [];
+  }
+  
+  const configs: PDAState[] = [];
+  const inputSymbol = currentConfig.inputPosition < currentConfig.inputString.length
+    ? currentConfig.inputString[currentConfig.inputPosition]
+    : '';
+  
+  // Check all possible transitions
+  for (const transition of currentNode.transitions) {
+    const [transInput, popSymbol] = transition.label.split(',');
     
-    if (state) {
-      for (const transition of state.transitions) {
-        const [inputSymbol] = transition.label.split(',');
-        
-        // If we're only looking for epsilon transitions, skip non-epsilon transitions
-        if (epsilonOnly && inputSymbol !== 'ε') {
-          continue;
-        }
-        
-        // If not epsilon-only mode, handle normal transitions
-        if (!epsilonOnly && inputSymbol !== 'ε' && currentSymbol === null) {
-          continue; // Skip non-epsilon transitions when no input is left
-        }
-        
-        // Check if this transition can be taken
-        if (canTakeTransition(transition.label, currentSymbol, stackTop)) {
-          // Apply the transition to get a new configuration
-          const newConfig = applyTransition(config, transition.label, transition.targetid);
-          nextConfigs.push(newConfig);
-        }
+    // First check epsilon transitions
+    if (transInput === 'ε') {
+      if (popSymbol === 'ε' || 
+          (currentConfig.stack.content.length > 0 && 
+           currentConfig.stack.content[currentConfig.stack.content.length - 1] === popSymbol)) {
+        configs.push(applyTransition(currentConfig, transition));
+      }
+    }
+    // Then check transitions that match the current input symbol
+    else if (transInput === inputSymbol) {
+      if (popSymbol === 'ε' || 
+          (currentConfig.stack.content.length > 0 && 
+           currentConfig.stack.content[currentConfig.stack.content.length - 1] === popSymbol)) {
+        configs.push(applyTransition(currentConfig, transition));
       }
     }
   }
   
-  return nextConfigs;
-};
+  // If no transitions possible and we're at the end of input
+  if (configs.length === 0 && currentConfig.inputPosition >= currentConfig.inputString.length) {
+    // Return a halted configuration - accepted if in a final state
+    return [{
+      ...currentConfig,
+      halted: true,
+      accepted: finalStates.has(currentConfig.stateId)
+    }];
+  }
   
+  return configs;
+};
+
+/**
+ * Determines if a PDA accepts an input string
+ * Uses BFS to handle nondeterminism
+ */
+export const simulatePDA = (
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  inputString: string,
+  initialStack: string[] = ['Z']  // Default initial stack with bottom marker Z
+): {accepted: boolean, stateId: string | null} => {
+  // Start with initial configuration
+  const initialConfig: PDAState = {
+    stateId: 'q0',
+    inputString,
+    inputPosition: 0,
+    stack: { content: initialStack },
+    halted: false,
+    accepted: false
+  };
+  
+  // Queue for BFS
+  const queue: PDAState[] = [initialConfig];
+  // Set to keep track of visited configurations to avoid cycles
+  const visited = new Set<string>();
+  
+  while (queue.length > 0) {
+    const currentConfig = queue.shift()!;
+    
+    // Generate a string representation of the configuration for checking cycles
+    const configStr = `${currentConfig.stateId},${currentConfig.inputPosition},${currentConfig.stack.content.join('')}`;
+    
+    // Skip if we've already visited this configuration
+    if (visited.has(configStr)) continue;
+    visited.add(configStr);
+    
+    // Check if we've consumed all input and are in an accepting state
+    if (currentConfig.inputPosition >= inputString.length && finalStates.has(currentConfig.stateId)) {
+      return { accepted: true, stateId: currentConfig.stateId };
+    }
+    
+    // Get all possible next configurations
+    const nextConfigs = getNextConfigurations(currentConfig, nodes, nodeMap, finalStates);
+    queue.push(...nextConfigs);
+  }
+  
+  // If we've exhausted all possibilities without accepting
+  return { accepted: false, stateId: null };
+};
+
+export interface Transition {
+  targetid: string;
+  label: string;
+}

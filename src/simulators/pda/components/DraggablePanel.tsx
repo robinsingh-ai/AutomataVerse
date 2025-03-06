@@ -126,4 +126,4 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
   );
 };
 
-export default DraggablePanel; 
+export default DraggablePanel;

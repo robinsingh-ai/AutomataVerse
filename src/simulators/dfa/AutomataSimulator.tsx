@@ -5,13 +5,18 @@ import { Stage, Layer } from 'react-konva';
 import dynamic from 'next/dynamic';
 import ControlPanel from './components/ControlPanel';
 import InputPopup from './components/InputPopup';
-import { Node, NodeMap, HighlightedTransition, StageProps } from './type';
+import DFAInfoPanel from './components/DFAInfoPanel';
+import { Node, NodeMap, HighlightedTransition, StageProps, DFAState } from './type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { useTheme } from '../../app/context/ThemeContext';
-import DFAInfoPanel from './components/DFAInfoPanel';
 import TestInputPanel from './components/TestInputPanel';
-import { deserializeDFA, SerializedDFA, serializeDFA, encodeDFAForURL, validateDFA } from './utils/dfaSerializer';
+import { 
+  deserializeDFA, 
+  encodeDFAForURL, 
+  validateDFA, 
+  getNextConfiguration
+} from './utils/dfaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
 
@@ -24,11 +29,11 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
   ssr: false,
 });
 
-interface AutomataSimulatorProps {
+interface DFASimulatorProps {
   initialDFA?: string; // Optional JSON string to initialize the DFA
 }
 
-const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => {
+const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -36,7 +41,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [finiteNodes, setFiniteNodes] = useState<Set<string>>(new Set());
   const [inputString, setInputString] = useState<string>('');
-  const [currNode, setCurrNode] = useState<Node | null>(null);
+  const [currNodes, setCurrNodes] = useState<Set<string>>(new Set());
+  const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
   const [validationResult, setValidationResult] = useState<string | null>(null);
   const [stageProps, setStageProps] = useState<StageProps>({
     x: 0,
@@ -46,7 +52,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
   });
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
-  const [highlightedTransition, setHighlightedTransition] = useState<HighlightedTransition>({});
+  const [highlightedTransitions, setHighlightedTransitions] = useState<HighlightedTransition[]>([]);
   const [showQuestion, setShowQuestion] = useState<boolean>(false);
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -56,6 +62,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
   const [isClient, setIsClient] = useState(false);
   const [jsonInputOpen, setJsonInputOpen] = useState<boolean>(false);
   const [jsonInput, setJsonInput] = useState<string>('');
+  const [currentConfiguration, setCurrentConfiguration] = useState<DFAState | null>(null);
   
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -144,19 +151,19 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     setJsonInputOpen(!jsonInputOpen);
   };
 
-  // Clear highlighted transition after a short delay
+  // Clear highlighted transitions after a short delay
   useEffect(() => {
     let timerId: NodeJS.Timeout | null = null;
-    if (highlightedTransition.d) {
+    if (highlightedTransitions.length > 0) {
       if (timerId) clearTimeout(timerId);
       timerId = setTimeout(() => {
-        setHighlightedTransition({});
+        setHighlightedTransitions([]);
       }, 400);
     }
     return () => {
       if (timerId) clearTimeout(timerId);
     };
-  }, [highlightedTransition]);
+  }, [highlightedTransitions]);
 
   const handleAddNode = (): void => {
     // Calculate position in the center of the visible area
@@ -187,98 +194,52 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     );
   };
 
-  const handleSymbolInputSubmit = (symbol: string): void => {
-    if (!symbol) {
-      console.warn("No transition symbol provided.");
+  const handleSymbolInputSubmit = (transitionInfo: string): void => {
+    if (!transitionInfo) {
+      console.warn("Invalid transition format");
       return;
     }
+    
+    // Verify transition format is a single input symbol 
+    if (transitionInfo.length === 0) {
+      console.warn("Transition must be a single input symbol");
+      return;
+    }
+    
     if (!targetNode) {
-      console.warn("No source node was selected.");
+      console.warn("No target node was selected.");
       return;
     }
 
     if (selectedNode) {
-      // Check if adding this transition would make the DFA non-deterministic
-      const symbolsToAdd = symbol.split(',').filter(s => s.trim());
+      // First check if this state already has a transition for this input symbol
+      const existingTransition = selectedNode.transitions.find(t => t.label === transitionInfo);
+      if (existingTransition) {
+        console.warn(`State ${selectedNode.id} already has a transition for input symbol ${transitionInfo}`);
+        setValidationResult(`Error: State ${selectedNode.id} already has a transition for input symbol ${transitionInfo}`);
+        setIsPopupOpen(false);
+        setSelectedNode(null);
+        setTargetNode(null);
+        return;
+      }
       
-      // Create a temporary copy of nodes with the new transition
+      // Add the transition
       const updatedNodes = [...nodes];
       const nodeIndex = updatedNodes.findIndex(n => n.id === selectedNode.id);
       
       if (nodeIndex !== -1) {
-        // Create a map of existing symbols to their target states for this node
-        const existingSymbolMap = new Map<string, string>();
-        updatedNodes[nodeIndex].transitions.forEach(transition => {
-          transition.label.split(',').filter(s => s.trim()).forEach(sym => {
-            existingSymbolMap.set(sym, transition.targetid);
-          });
-        });
+        // Create a copy of the node to modify
+        const updatedNode = { ...updatedNodes[nodeIndex] };
         
-        // Check for conflicts (same symbol going to different states)
-        const conflictingSymbols: string[] = [];
-        symbolsToAdd.forEach(newSymbol => {
-          if (existingSymbolMap.has(newSymbol) && existingSymbolMap.get(newSymbol) !== targetNode.id) {
-            conflictingSymbols.push(newSymbol);
-          }
-        });
+        // Add new transition
+        updatedNode.transitions = [
+          ...updatedNode.transitions,
+          { targetid: targetNode.id, label: transitionInfo }
+        ];
         
-        if (conflictingSymbols.length > 0) {
-          setValidationResult(`Error: Symbol(s) '${conflictingSymbols.join(', ')}' already have transitions to different states. In a DFA, each input symbol can only transition to one state.`);
-          setIsPopupOpen(false);
-          return;
-        }
-        
-        // Remove symbols that are being redirected from their original transitions
-        const nodeCopy = { ...updatedNodes[nodeIndex] };
-        const updatedTransitions = nodeCopy.transitions.map(transition => {
-          const transSymbols = transition.label.split(',').filter(s => s.trim());
-          const remainingSymbols = transSymbols.filter(sym => 
-            !symbolsToAdd.includes(sym) || transition.targetid === targetNode.id
-          );
-          
-          return {
-            ...transition,
-            label: remainingSymbols.join(',')
-          };
-        }).filter(t => t.label !== ''); // Remove empty transitions
-        
-        // Find if there's already a transition to the target node
-        const targetTransitionIndex = updatedTransitions.findIndex(
-          t => t.targetid === targetNode.id
-        );
-        
-        if (targetTransitionIndex !== -1) {
-          // Add symbols to existing transition
-          const existingSymbols = updatedTransitions[targetTransitionIndex].label.split(',').filter(s => s.trim());
-          const mergedSymbols = [...new Set([...existingSymbols, ...symbolsToAdd])]; // Remove duplicates
-          
-          updatedTransitions[targetTransitionIndex] = {
-            ...updatedTransitions[targetTransitionIndex],
-            label: mergedSymbols.join(',')
-          };
-        } else {
-          // Create new transition
-          updatedTransitions.push({
-            targetid: targetNode.id,
-            label: symbolsToAdd.join(',')
-          });
-        }
-        
-        // Update the node with the new transitions
-        nodeCopy.transitions = updatedTransitions;
-        updatedNodes[nodeIndex] = nodeCopy;
-        
-        // Final validation check
-        const validationResult = validateDFA(updatedNodes, finiteNodes);
-        if (!validationResult.isValid) {
-          setValidationResult(validationResult.errorMessage || 'Invalid DFA');
-          setIsPopupOpen(false);
-          return;
-        }
-        
-        // If all checks pass, update the nodes state
+        // Replace the node in the array
+        updatedNodes[nodeIndex] = updatedNode;
         setNodes(updatedNodes);
-        setValidationResult('Transition added successfully');
       }
       
       setSelectedNode(null);
@@ -329,18 +290,30 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
 
   const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
   
-  const getNodeById = (id: string): Node | undefined => nodeMap[id];
-
   const resetSimulation = (): void => {
     setIsRunning(false);
     setIsRunningStepWise(false);
     setShowQuestion(false);
     setValidationResult(null);
-    setCurrNode(null);
+    setCurrNodes(new Set());
+    setHighlightedNodes(new Set());
     setStepIndex(0);
-    setHighlightedTransition({});
+    setHighlightedTransitions([]);
+    setCurrentConfiguration(null);
   };
 
+  // Initialize the DFA simulation
+  const initializeDFA = (input: string): DFAState => {
+    return {
+      stateId: 'q0',
+      inputString: input,
+      inputPosition: 0,
+      halted: false,
+      accepted: false
+    };
+  };
+
+  // DFA simulation
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
     
@@ -355,88 +328,144 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     if (isRunningStepWise) setIsRunningStepWise(false);
     setShowQuestion(false);
     setSelectedNode(null);
-    setHighlightedTransition({});
+    setHighlightedTransitions([]);
     setValidationResult(null);
     setStepIndex(0);
     
-    let mcurrNode = nodes[0];
-    setCurrNode(mcurrNode);
-
-    for (const char of inputString) {
-      await sleep(1000);
-      let found = false;
-      for (const transition of mcurrNode.transitions) {
-        if (transition.label.split(",").filter(num => num !== "").includes(char)) {
-          setHighlightedTransition({d: transition, target: mcurrNode.id});
-          const nextNode = getNodeById(transition.targetid);
-          if (nextNode) {
-            mcurrNode = nextNode;
-            await sleep(200);
-            setCurrNode(mcurrNode);
-            found = true;
-            break;
-          }
+    // Initialize DFA with input
+    const initialConfig = initializeDFA(inputString);
+    setCurrentConfiguration(initialConfig);
+    setCurrNodes(new Set([initialConfig.stateId]));
+    setHighlightedNodes(new Set([initialConfig.stateId]));
+    
+    // Start with initial configuration
+    let currentConfig = initialConfig;
+    
+    // Run the DFA until it halts or rejects
+    while (!currentConfig.halted) {
+      await sleep(500); // Delay for animation
+      
+      // Get next configuration
+      const nextConfig = getNextConfiguration(currentConfig, nodes, nodeMap);
+      
+      // If no valid transition exists
+      if (!nextConfig || nextConfig.halted) {
+        if (nextConfig && currentConfig.inputPosition >= inputString.length && finiteNodes.has(currentConfig.stateId)) {
+          setValidationResult("Input Accepted");
+        } else {
+          setValidationResult("Input Rejected");
         }
-      }
-      if (!found) {
-        setShowQuestion(true);
-        setValidationResult(`No transition for '${char}' at ${mcurrNode.id}`);
+        
         setIsRunning(false);
         return;
       }
-      setStepIndex(prevStepIndex => prevStepIndex + 1);
+      
+      // Highlight the transition
+      const currentNode = nodeMap[currentConfig.stateId];
+      
+      if (currentNode) {
+        // Find the transition that was taken
+        const transition = currentNode.transitions.find(t => 
+          t.targetid === nextConfig.stateId && 
+          t.label === inputString[currentConfig.inputPosition]
+        );
+        
+        if (transition) {
+          setHighlightedTransitions([{
+            d: transition,
+            target: currentConfig.stateId
+          }]);
+        }
+      }
+      
+      // Update the configuration
+      currentConfig = nextConfig;
+      setCurrentConfiguration(currentConfig);
+      setCurrNodes(new Set([currentConfig.stateId]));
+      setHighlightedNodes(new Set([currentConfig.stateId]));
+      setStepIndex(prevStep => prevStep + 1);
+      
+      // Check if we've consumed all input
+      if (currentConfig.inputPosition >= inputString.length) {
+        // If in an accepting state, accept
+        if (finiteNodes.has(currentConfig.stateId)) {
+          setValidationResult("Input Accepted");
+        } else {
+          setValidationResult("Input Rejected");
+        }
+        
+        setIsRunning(false);
+        return;
+      }
     }
     
-    if (finiteNodes.has(mcurrNode.id)) {
-      setValidationResult("String is Valid");
-    } else {
-      setValidationResult("String is invalid");
-    }
     setIsRunning(false);
   };
 
   const handleStepWise = async (): Promise<void> => {
     if (selectedNode) setSelectedNode(null);
     
-    if (!inputString || !nodes.length || !currNode) return;
-    
-    const char = inputString[stepIndex];
-    let found = false;
-    let mcurrNode = currNode;
-
-    if (inputString) {
-      for (const transition of mcurrNode.transitions) {
-        if (transition.label.split(",").filter(num => num !== "").includes(char)) {
-          setHighlightedTransition({d: transition, target: mcurrNode.id});
-          const nextNode = getNodeById(transition.targetid);
-          if (nextNode) {
-            mcurrNode = nextNode;
-            await sleep(200);
-            setCurrNode(mcurrNode);
-            found = true;
-            break;
-          }
-        }
-      }
-    
-      if (!found) {
-        setIsRunningStepWise(false);
-        setShowQuestion(true);
-        setValidationResult(`No transition for '${char}' at ${mcurrNode.id}`);
-        return;
-      }
+    if (!currentConfiguration) {
+      // First step - initialize
+      const initialConfig = initializeDFA(inputString);
+      
+      setCurrentConfiguration(initialConfig);
+      setCurrNodes(new Set(['q0']));
+      setHighlightedNodes(new Set(['q0']));
+      return;
     }
-   
-    // Step wise finished
-    if (stepIndex === inputString.length - 1 || !inputString) {
-      setIsRunningStepWise(false);
-      if (finiteNodes.has(mcurrNode.id)) {
-        setValidationResult("String is Valid");
+    
+    // Get next configuration
+    const nextConfig = getNextConfiguration(currentConfiguration, nodes, nodeMap);
+    
+    // If no valid transition exists or we've halted
+    if (!nextConfig || nextConfig.halted) {
+      // Check if we've consumed all input and are in an accepting state
+      if (currentConfiguration.inputPosition >= inputString.length && finiteNodes.has(currentConfiguration.stateId)) {
+        setValidationResult("Input Accepted");
       } else {
-        setValidationResult("String is invalid");
+        setValidationResult("Input Rejected");
+      }
+      
+      setIsRunningStepWise(false);
+      return;
+    }
+    
+    // Highlight the transition
+    const currentNode = nodeMap[currentConfiguration.stateId];
+    
+    if (currentNode) {
+      const transition = currentNode.transitions.find(t => 
+        t.targetid === nextConfig.stateId && 
+        t.label === inputString[currentConfiguration.inputPosition]
+      );
+      
+      if (transition) {
+        setHighlightedTransitions([{
+          d: transition,
+          target: currentConfiguration.stateId
+        }]);
       }
     }
+    
+    // Update the configuration
+    setCurrentConfiguration(nextConfig);
+    setCurrNodes(new Set([nextConfig.stateId]));
+    setHighlightedNodes(new Set([nextConfig.stateId]));
     setStepIndex(prevStepIndex => prevStepIndex + 1);
+    
+    // Check if we've consumed all input
+    if (nextConfig.inputPosition >= inputString.length) {
+      // If in an accepting state, accept
+      if (finiteNodes.has(nextConfig.stateId)) {
+        setValidationResult("Input Accepted");
+      } else {
+        setValidationResult("Input Rejected");
+      }
+      
+      setIsRunningStepWise(false);
+      return;
+    }
   };
 
   const onStepWiseClick = (): void => {
@@ -453,7 +482,6 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
       }
       
       resetSimulation();
-      setCurrNode(nodes[0]);
       setIsRunningStepWise(true);
       
       // Call handleStepWise after a short delay to allow state to update
@@ -524,17 +552,17 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
 
   // Calculate all input symbols used in the transitions
   const getInputSymbols = (): string[] => {
-    const symbolsSet = new Set<string>();
+    const inputSymbolsSet = new Set<string>();
+    
     nodes.forEach(node => {
       node.transitions.forEach(transition => {
-        transition.label.split(',').forEach(symbol => {
-          if (symbol.trim()) {
-            symbolsSet.add(symbol.trim());
-          }
-        });
+        if (transition.label) {
+          inputSymbolsSet.add(transition.label);
+        }
       });
     });
-    return Array.from(symbolsSet).sort();
+    
+    return Array.from(inputSymbolsSet).sort();
   };
 
   /**
@@ -565,12 +593,15 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
       setValidationResult(result.errorMessage || 'Invalid DFA');
       return false;
     }
+    setValidationResult('Valid DFA');
     return true;
   };
 
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
+
+  const inputSymbols = getInputSymbols();
 
   return (
     <div 
@@ -603,7 +634,10 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         states={nodes.map(node => node.id)} 
         initialState={nodes.length > 0 ? nodes[0].id : null}
         finalStates={Array.from(finiteNodes)}
-        inputSymbols={getInputSymbols()}
+        inputSymbols={inputSymbols}
+        currentState={Array.from(currNodes)[0] || null}
+        currentPosition={currentConfiguration ? currentConfiguration.inputPosition : 0}
+        inputString={inputString}
       />
       
       <TestInputPanel 
@@ -660,10 +694,11 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
               showGrid={showGrid}
               stageProps={stageProps}
               nodeMap={nodeMap}
-              highlightedTransition={highlightedTransition}
+              highlightedTransitions={highlightedTransitions}
+              highlightedNodes={highlightedNodes}
               selectedNode={selectedNode}
               finiteNodes={finiteNodes}
-              currNode={currNode}
+              currNodes={currNodes}
               showQuestion={showQuestion}
               handleNodeClick={handleNodeClick}
               handleDragMove={handleDragMove}

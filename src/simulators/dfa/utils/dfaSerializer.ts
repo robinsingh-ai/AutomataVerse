@@ -1,4 +1,4 @@
-import { Node } from '../type';
+import { Node, DFAState } from '../type';
 
 export interface SerializedDFA {
   nodes: Node[];
@@ -19,7 +19,6 @@ export const serializeDFA = (nodes: Node[], finalStates: Set<string>): string =>
 
 /**
  * Validates if a DFA meets all formal requirements
- * Returns an error message if invalid, or null if valid
  */
 export interface ValidationResult {
   isValid: boolean;
@@ -56,23 +55,19 @@ export const validateDFA = (nodes: Node[], finalStates: Set<string>): Validation
     }
   }
 
-  // 5. Collect all input symbols used in transitions
-  const alphabet = new Set<string>();
-  nodes.forEach(node => {
-    node.transitions.forEach(transition => {
-      transition.label.split(',').forEach(symbol => {
-        if (symbol.trim()) {
-          alphabet.add(symbol.trim());
-        }
-      });
-    });
-  });
+  // 5. Initial state (q0) must exist
+  if (!stateIds.has('q0')) {
+    return {
+      isValid: false,
+      errorMessage: "Error: Initial state 'q0' is required"
+    };
+  }
 
-  // 6. Check for determinism - each (state, symbol) pair should have exactly one target
-  const transitionMap = new Map<string, Set<string>>();
-  
+  // 6. Check if all target states exist 
   for (const node of nodes) {
-    // First, check if all target states exist
+    // Get all input symbols from this state's transitions
+    const inputSymbols = new Set<string>();
+    
     for (const transition of node.transitions) {
       if (!stateIds.has(transition.targetid)) {
         return {
@@ -81,52 +76,18 @@ export const validateDFA = (nodes: Node[], finalStates: Set<string>): Validation
         };
       }
       
-      // Then check for determinism
-      const symbols = transition.label.split(',').filter(s => s.trim());
-      for (const symbol of symbols) {
-        const key = `${node.id},${symbol}`;
-        if (!transitionMap.has(key)) {
-          transitionMap.set(key, new Set<string>());
-        }
-        transitionMap.get(key)?.add(transition.targetid);
-      }
-    }
-  }
-  
-  // Check if any (state, symbol) pair leads to multiple states (non-determinism)
-  for (const [key, targets] of transitionMap.entries()) {
-    if (targets.size > 1) {
-      const [state, symbol] = key.split(',');
-      return {
-        isValid: false,
-        errorMessage: `Error: Non-deterministic transition detected - state '${state}' has multiple transitions for input '${symbol}'`
-      };
-    }
-  }
-  
-  // 7. Check if all states have transitions for all symbols in the alphabet
-  // We keep this commented out to allow partially built DFAs during design
-  /*
-  for (const node of nodes) {
-    const stateTransitions = new Set<string>();
-    node.transitions.forEach(transition => {
-      transition.label.split(',').forEach(symbol => {
-        if (symbol.trim()) {
-          stateTransitions.add(symbol.trim());
-        }
-      });
-    });
-    
-    for (const symbol of alphabet) {
-      if (!stateTransitions.has(symbol)) {
+      // Check for determinism - no duplicate input symbols
+      if (inputSymbols.has(transition.label)) {
         return {
           isValid: false,
-          errorMessage: `Error: Missing transition - state '${node.id}' has no transition for input '${symbol}'`
+          errorMessage: `Error: Non-deterministic transition in state '${node.id}' for input symbol '${transition.label}'`
         };
       }
+      
+      // Add this input symbol to the set
+      inputSymbols.add(transition.label);
     }
   }
-  */
   
   return { isValid: true };
 };
@@ -198,4 +159,94 @@ export const decodeDFAFromURL = (encodedDFA: string): SerializedDFA | null => {
     console.error('Error decoding DFA from URL:', error);
     return null;
   }
-}; 
+};
+
+/**
+ * Gets the next DFA configuration
+ */
+export const getNextConfiguration = (
+  currentConfig: DFAState,
+  nodes: Node[],
+  nodeMap: Record<string, Node>
+): DFAState | null => {
+  const currentNode = nodeMap[currentConfig.stateId];
+  
+  if (!currentNode) {
+    return null;
+  }
+  
+  // Check if we've reached the end of the input
+  if (currentConfig.inputPosition >= currentConfig.inputString.length) {
+    return {
+      ...currentConfig,
+      halted: true,
+      accepted: false // This will be updated later based on whether the state is accepting
+    };
+  }
+  
+  // Get the current input symbol
+  const inputSymbol = currentConfig.inputString[currentConfig.inputPosition];
+  
+  // Find the transition for this input symbol
+  const transition = currentNode.transitions.find(t => t.label === inputSymbol);
+  
+  // If no transition exists for this input symbol, the DFA rejects
+  if (!transition) {
+    return {
+      ...currentConfig,
+      halted: true,
+      accepted: false
+    };
+  }
+  
+  // Return the next configuration
+  return {
+    stateId: transition.targetid,
+    inputString: currentConfig.inputString,
+    inputPosition: currentConfig.inputPosition + 1,
+    halted: false,
+    accepted: false
+  };
+};
+
+/**
+ * Determines if a DFA accepts an input string
+ */
+export const simulateDFA = (
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  inputString: string
+): {accepted: boolean, stateId: string | null} => {
+  // Start with initial configuration
+  let currentConfig: DFAState = {
+    stateId: 'q0',
+    inputString,
+    inputPosition: 0,
+    halted: false,
+    accepted: false
+  };
+  
+  // Process each input symbol
+  while (!currentConfig.halted) {
+    const nextConfig = getNextConfiguration(currentConfig, nodes, nodeMap);
+    
+    if (!nextConfig) {
+      return { accepted: false, stateId: null };
+    }
+    
+    currentConfig = nextConfig;
+    
+    // If we've reached the end of the input, check if we're in an accepting state
+    if (currentConfig.inputPosition >= inputString.length) {
+      currentConfig.halted = true;
+      currentConfig.accepted = finalStates.has(currentConfig.stateId);
+      break;
+    }
+  }
+  
+  return { 
+    accepted: currentConfig.accepted, 
+    stateId: currentConfig.stateId 
+  };
+};

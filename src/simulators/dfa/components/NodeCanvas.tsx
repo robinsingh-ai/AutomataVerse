@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Circle, Arrow, Text, Shape, Group, Rect } from 'react-konva';
-import Grid from './Grid';
 import { NodeCanvasProps } from '../type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
@@ -22,13 +21,12 @@ type CurvedArrowPoints = ArrowPoints & {
 
 const NodeCanvas: React.FC<NodeCanvasProps> = ({
   nodes,
-  showGrid,
-  stageProps,
   nodeMap,
-  highlightedTransition,
+  highlightedTransitions,
+  highlightedNodes,
   selectedNode,
   finiteNodes,
-  currNode,
+  currNodes,
   showQuestion,
   handleNodeClick,
   handleDragMove,
@@ -37,10 +35,14 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
 }) => {
   // Add animation state
   const [animationProgress, setAnimationProgress] = useState<number>(0);
+  // Add state to toggle transition label visibility
+  const [showAllLabels, setShowAllLabels] = useState<boolean>(false);
+  // Track hovered transitions for selective label display
+  const [hoveredTransition, setHoveredTransition] = useState<{ sourceId: string, targetId: string } | null>(null);
 
   // Animation effect for highlighted transitions
   useEffect(() => {
-    if (!highlightedTransition || !highlightedTransition.d) return;
+    if (highlightedTransitions.length === 0) return;
     
     let animationFrameId: number;
     let progress = 0;
@@ -60,7 +62,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [highlightedTransition]);
+  }, [highlightedTransitions]);
 
   // Node and transition rendering functions
   const calculateArrowPoints = (sourceX: number, sourceY: number, targetX: number, targetY: number, radius: number) => {
@@ -90,10 +92,8 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
     const curveOffset = distance / radiusFactor;
   
-    const controlX =
-      centerX + curveOffset * Math.cos(angle + Math.PI / 2) * -1;
-    const controlY =
-      centerY + curveOffset * Math.sin(angle + Math.PI / 2) * -1;
+    const controlX = centerX + curveOffset * Math.cos(angle + Math.PI / 2) * -1;
+    const controlY = centerY + curveOffset * Math.sin(angle + Math.PI / 2) * -1;
   
     const angleToTarget = Math.atan2(targetY - controlY, targetX - controlX);
   
@@ -119,10 +119,48 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     return Math.max(6, distance / 60);
   };
 
+  // Get all transitions between two states
+  const getTransitionsBetweenStates = (sourceId: string, targetId: string): string[] => {
+    const source = nodeMap[sourceId];
+    if (!source) return [];
+    
+    const transitions = source.transitions.filter(t => t.targetid === targetId);
+    if (transitions.length === 0) return [];
+    
+    // Return labels
+    return transitions.map(t => t.label);
+  };
+  
+  // Function to check if transition should be visible
+  const isTransitionLabelVisible = (sourceId: string, targetId: string): boolean => {
+    // Always show highlighted transitions
+    if (highlightedTransitions.some(
+      ht => ht.target === sourceId && ht.d?.targetid === targetId
+    )) {
+      return true;
+    }
+    
+    // Always show transitions from/to selected node
+    if (selectedNode && (selectedNode.id === sourceId || selectedNode.id === targetId)) {
+      return true;
+    }
+    
+    // Show transitions that are being hovered
+    if (hoveredTransition && 
+        hoveredTransition.sourceId === sourceId && 
+        hoveredTransition.targetId === targetId) {
+      return true;
+    }
+    
+    // Toggle for showing all labels
+    return showAllLabels;
+  };
+
   // Function to draw animated edges
   const drawAnimatedEdge = (
     points: ArrowPoints | CurvedArrowPoints, 
     isCurved: boolean,
+    label: string,
     progress: number, 
     color: string = "red"
   ) => {
@@ -252,8 +290,36 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     );
   };
 
-  // Updated self-loop drawing to include animation when highlighted
-  const drawSelfLoop = (x: number, y: number, label: string, index: number, isHighlighted: boolean) => {
+  // Helper functions for label positions
+  const calculateMidpointX = (startX: number, controlX: number, endX: number) => {
+    return ((startX + 2 * controlX + endX) / 4 - 3);
+  };
+  
+  const calculateMidpointY = (startY: number, controlY: number, endY: number) => {
+    return (startY + 2 * controlY + endY) / 4 - 8;
+  };
+
+  const isTransitionHighlighted = (sourceId: string, targetId: string): boolean => {
+    return highlightedTransitions.some(
+      ht => ht.target === sourceId && ht.d?.targetid === targetId
+    );
+  };
+
+  // Split the labels into multiple lines if too many
+  const formatLabelsForDisplay = (labels: string[]): string[] => {
+    if (labels.length <= 3) return labels;
+    
+    // Group labels into batches of 3 for better display
+    const result: string[] = [];
+    for (let i = 0; i < labels.length; i += 3) {
+      const batch = labels.slice(i, i + 3);
+      result.push(batch.join(', '));
+    }
+    return result;
+  };
+
+  // Draw self-loop with improved label positioning
+  const drawSelfLoop = (x: number, y: number, nodeId: string, index: number, isHighlighted: boolean) => {
     const radius = 20;
     const loopRadius = 20;
     const angleOffset = Math.PI;
@@ -263,8 +329,29 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const loopY = y - radius - loopRadius;
     const arrowAngle = Math.PI / 18;
 
+    // Get all self-loop transitions for this node
+    const node = nodeMap[nodeId];
+    if (!node) return null;
+    
+    const selfTransitions = node.transitions.filter(t => t.targetid === nodeId);
+    if (selfTransitions.length === 0) return null;
+    
+    // Format each transition label
+    const labels = selfTransitions.map(t => t.label);
+    
+    // If there are too many labels, show a counter instead
+    const showCounter = labels.length > 4 && !isHighlighted && !isTransitionLabelVisible(nodeId, nodeId);
+    
+    // Calculate dimensions for the label background
+    const lineHeight = 16;
+    const totalHeight = showCounter ? lineHeight : labels.length * lineHeight;
+    const maxLabelWidth = showCounter ? 60 : Math.max(...labels.map(label => label.length * 8)) + 10;
+    
     return (
-      <Group key={`self-loop-${index}`} perfectDrawEnabled={false}>
+      <Group key={`self-loop-${index}`} perfectDrawEnabled={false}
+        onMouseEnter={() => setHoveredTransition({ sourceId: nodeId, targetId: nodeId })}
+        onMouseLeave={() => setHoveredTransition(null)}
+      >
         {/* Draw animated or regular loop based on highlight state */}
         {isHighlighted ? (
           <Shape
@@ -325,96 +412,180 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           />
         )}
         
-        <Text
-          x={loopX - label.length * 3 - 3}
-          y={loopY - loopRadius - 18}
-          text={label}
-          fontSize={16}
-          fill="black"
-          align="center"
-          verticalAlign="middle"
-          perfectDrawEnabled={false}
-        />
+        {/* Show either a counter or the actual labels */}
+        {showCounter ? (
+          <>
+            {/* Background for counter */}
+            <Rect
+              x={loopX - 30}
+              y={loopY - loopRadius - 25}
+              width={60}
+              height={20}
+              fill="white"
+              opacity={0.9}
+              cornerRadius={4}
+              perfectDrawEnabled={false}
+            />
+            
+            {/* Counter text */}
+            <Text
+              x={loopX - 30}
+              y={loopY - loopRadius - 22}
+              width={60}
+              text={`${labels.length} symbols`}
+              fontSize={12}
+              fill="black"
+              align="center"
+              verticalAlign="middle"
+              perfectDrawEnabled={false}
+            />
+          </>
+        ) : (
+          isTransitionLabelVisible(nodeId, nodeId) && (
+            <>
+              {/* Background for labels */}
+              <Rect
+                x={loopX - maxLabelWidth / 2}
+                y={loopY - loopRadius - totalHeight - 10}
+                width={maxLabelWidth}
+                height={totalHeight + 6}
+                fill="white"
+                opacity={0.9}
+                cornerRadius={4}
+                perfectDrawEnabled={false}
+              />
+              
+              {/* Render each transition label */}
+              {labels.map((label, i) => (
+                <Text
+                  key={i}
+                  x={loopX - maxLabelWidth / 2 + 5}
+                  y={loopY - loopRadius - totalHeight + i * lineHeight - 5}
+                  text={label}
+                  fontSize={14}
+                  fill="black"
+                  align="center"
+                  verticalAlign="middle"
+                  perfectDrawEnabled={false}
+                />
+              ))}
+            </>
+          )
+        )}
       </Group>
     );
   };
 
-  // Helper function for curved arrow label position
-  const calculateMidpointX = (startX: number, controlX: number, endX: number) => {
-    return ((startX + 2 * controlX + endX) / 4 - 3);
-  };
-  
-  const calculateMidpointY = (startY: number, controlY: number, endY: number) => {
-    return (startY + 2 * controlY + endY) / 4 - 8;
+  // Toggle function for showing all labels
+  const toggleShowAllLabels = () => {
+    setShowAllLabels(!showAllLabels);
   };
 
   return (
     <>
-      {/* Grid Background */}
-      {showGrid && <Grid size={20} color="#9c9c9c" stageProps={stageProps} />}
-
+      {/* Button to toggle all labels */}
+      <Group x={20} y={20}>
+        <Rect
+          width={120}
+          height={30}
+          fill={showAllLabels ? "#4CAF50" : "#2196F3"}
+          cornerRadius={5}
+          shadowBlur={3}
+          shadowColor="black"
+          shadowOpacity={0.3}
+          onClick={toggleShowAllLabels}
+        />
+        <Text
+          x={10}
+          y={7}
+          text={showAllLabels ? "Hide Labels" : "Show All Labels"}
+          fontSize={14}
+          fill="white"
+          width={100}
+          align="center"
+          onClick={toggleShowAllLabels}
+        />
+      </Group>
+      
       {/* Draw all transitions */}
-      {nodes.map((node, index) => 
-        node.transitions.map((transition, tindex) => {
+      {nodes.map((node, index) => {
+        // Group transitions by target for cleaner rendering
+        const processedTargets = new Set<string>();
+        
+        return node.transitions.map((transition, tindex) => {
           const target = nodeMap[transition.targetid];
           if (!target) return null;
           
-          const edge = { 
-            source: node, 
-            target: target, 
-            label: transition.label 
-          };
+          // If we already processed this target for this node, skip
+          // (we'll handle all transitions to the same target together)
+          if (transition.targetid !== node.id && processedTargets.has(transition.targetid)) {
+            return null;
+          }
           
-          const isReverse = nodes.some(
-            (n) => n.id === transition.targetid && 
-            n.transitions.some((t) => t.targetid === node.id)
-          );
+          // Mark this target as processed
+          processedTargets.add(transition.targetid);
+          
+          const sourceId = node.id;
+          const targetId = target.id;
           
           // Self-loop
-          if (edge.source.id === edge.target.id) {
-            const isHighlighted = highlightedTransition && 
-              highlightedTransition.d?.targetid === transition.targetid && 
-              highlightedTransition.d?.label === transition.label && 
-              highlightedTransition.target === edge.source.id;
-              
-            return drawSelfLoop(edge.source.x, edge.source.y, edge.label, index, isHighlighted);
+          if (sourceId === targetId) {
+            return drawSelfLoop(node.x, node.y, sourceId, index, isTransitionHighlighted(sourceId, targetId));
           } 
           // Regular transition
           else {
+            const isReverse = nodes.some(
+              (n) => n.id === targetId && 
+              n.transitions.some((t) => t.targetid === sourceId)
+            );
+            
             const points = isReverse
               ? calculateCurvedArrowPoints(
-                  edge.source.x,
-                  edge.source.y,
-                  edge.target.x,
-                  edge.target.y,
+                  node.x,
+                  node.y,
+                  target.x,
+                  target.y,
                   calculateCurveStrength(
-                    edge.source.x,
-                    edge.source.y,
-                    edge.target.x,
-                    edge.target.y
+                    node.x,
+                    node.y,
+                    target.x,
+                    target.y
                   ),
                   20
                 )
               : calculateArrowPoints(
-                  edge.source.x,
-                  edge.source.y,
-                  edge.target.x,
-                  edge.target.y,
+                  node.x,
+                  node.y,
+                  target.x,
+                  target.y,
                   30
                 );
             
-            const isHighlighted = highlightedTransition && 
-              highlightedTransition.d?.targetid === transition.targetid && 
-              highlightedTransition.d?.label === transition.label && 
-              highlightedTransition.target === edge.source.id;
+            // Get all transition labels between these nodes
+            const transitionLabels = getTransitionsBetweenStates(sourceId, targetId);
+            
+            // Check if we should show labels for this transition
+            const showLabels = isTransitionLabelVisible(sourceId, targetId);
+            
+            // Format labels for display
+            const displayLabels = formatLabelsForDisplay(transitionLabels);
+            
+            // Show counter instead of labels if there are too many
+            const showCounter = transitionLabels.length > 4 && !isTransitionHighlighted(sourceId, targetId) && !showLabels;
             
             return (
-              <Group key={`${node.id}-${transition.targetid}-${tindex}`} perfectDrawEnabled={false}>
-                {/* Draw either animated or regular arrow based on highlight state */}
-                {isHighlighted ? (
+              <Group 
+                key={`${sourceId}-${targetId}-${tindex}`} 
+                perfectDrawEnabled={false}
+                onMouseEnter={() => setHoveredTransition({ sourceId, targetId })}
+                onMouseLeave={() => setHoveredTransition(null)}
+              >
+                {/* Draw regular or animated arrow based on highlight state */}
+                {isTransitionHighlighted(sourceId, targetId) ? (
                   drawAnimatedEdge(
                     points, 
-                    isReverse,
+                    isReverse, 
+                    transition.label, 
                     animationProgress,
                     "red"
                   )
@@ -443,8 +614,8 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                           context.beginPath();
                           const arrowSize = 15;
                           const angleToCenter = Math.atan2(
-                            edge.target.y - points.endY, 
-                            edge.target.x - points.endX
+                            target.y - points.endY, 
+                            target.x - points.endX
                           );
                           context.moveTo(points.endX, points.endY);
                           context.lineTo(
@@ -479,46 +650,95 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                   )
                 )}
                 
-                {/* Label Text */}
-                <Group perfectDrawEnabled={false}>
-                  <Rect
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 3.2) - 3
-                      : (points.startX + points.endX - (edge.label.length * 6.5)) / 2 - 4
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 5 
-                      : (points.startY + points.endY) / 2 - 10
-                    }
-                    width={edge.label.length * 7 + 10}
-                    height={20}
-                    fill="white"
-                    opacity={0.8}
-                    cornerRadius={4}
-                    perfectDrawEnabled={false}
-                  />
-                  <Text
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 6) / 2 
-                      : (points.startX + points.endX - (edge.label.length * 6)) / 2
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) 
-                      : (points.startY + points.endY - 15) / 2
-                    }
-                    text={edge.label}
-                    fontSize={16}
-                    fill="black"
-                    align="center"
-                    verticalAlign="middle"
-                    perfectDrawEnabled={false}
-                  />
-                </Group>
+                {/* Show either counter or labels */}
+                {showCounter ? (
+                  // Show transition count
+                  <Group perfectDrawEnabled={false}>
+                    <Rect
+                      x={(points.startX + points.endX) / 2 - 30}
+                      y={(points.startY + points.endY) / 2 - 10}
+                      width={60}
+                      height={20}
+                      fill="white"
+                      opacity={0.9}
+                      cornerRadius={4}
+                      perfectDrawEnabled={false}
+                    />
+                    <Text
+                      x={(points.startX + points.endX) / 2 - 30}
+                      y={(points.startY + points.endY) / 2 - 7}
+                      width={60}
+                      text={`${transitionLabels.length} symbols`}
+                      fontSize={12}
+                      fill="black"
+                      align="center"
+                      verticalAlign="middle"
+                      perfectDrawEnabled={false}
+                    />
+                  </Group>
+                ) : (
+                  // Show detailed transition labels
+                  showLabels && (
+                    <Group perfectDrawEnabled={false}>
+                      {(() => {
+                        // Calculate dimensions for the labels
+                        const lineHeight = 18;
+                        const totalHeight = displayLabels.length * lineHeight;
+                        
+                        // Find the longest label to size the background properly
+                        const maxLength = Math.max(...displayLabels.map(lbl => lbl.length));
+                        const boxWidth = maxLength * 10 + 20;
+                        
+                        // Calculate base position for the label
+                        const baseX = isReverse 
+                          ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - 
+                            (maxLength * 3) - 10
+                          : (points.startX + points.endX - (maxLength * 6)) / 2;
+                        
+                        const baseY = isReverse 
+                          ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 
+                            totalHeight / 2
+                          : (points.startY + points.endY) / 2 - totalHeight / 2;
+                        
+                        return (
+                          <>
+                            {/* Background */}
+                            <Rect
+                              x={baseX}
+                              y={baseY - 5}
+                              width={boxWidth}
+                              height={totalHeight + 10}
+                              fill="white"
+                              opacity={0.9}
+                              cornerRadius={4}
+                              perfectDrawEnabled={false}
+                            />
+                            
+                            {/* Render each label */}
+                            {displayLabels.map((label, i) => (
+                              <Text
+                                key={i}
+                                x={baseX + boxWidth / 2 - (label.length * 5) / 2}
+                                y={baseY + i * lineHeight}
+                                text={label}
+                                fontSize={14}
+                                fill="black"
+                                align="center"
+                                verticalAlign="middle"
+                                perfectDrawEnabled={false}
+                              />
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </Group>
+                  )
+                )}
               </Group>
             );
           }
-        })
-      )}
+        });
+      })}
 
       {/* Draw all nodes */}
       {nodes.map((node) => (
@@ -539,7 +759,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           shadowForStrokeEnabled={false}
           className="react-konva-drag"
         >
-          {showQuestion && currNode && (currNode.id === node.id) && (
+          {showQuestion && currNodes.has(node.id) && (
             <Group>
               <Circle
                 radius={15}
@@ -566,8 +786,8 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           {node.id === 'q0' && (
             <Arrow
               points={[-70, 0, -32, 0]}
-              stroke={currNode && currNode.id === node.id ? "red" : "black"}
-              fill={currNode && currNode.id === node.id ? "red" : "black"}
+              stroke={currNodes.has(node.id) ? "red" : "black"}
+              fill={currNodes.has(node.id) ? "red" : "black"}
               pointerLength={10}
               pointerWidth={10}
               perfectDrawEnabled={false}
@@ -582,27 +802,30 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
             fill={
               selectedNode 
                 ? (selectedNode.id === node.id ? "rgba(207, 207, 255, 1.0)" : "white") 
-                : (currNode && currNode.id === node.id 
-                    ? (finiteNodes.has(currNode.id) ? "#32CD32" : "red") 
+                : (currNodes.has(node.id)
+                    ? (finiteNodes.has(node.id) ? "#32CD32" : "red") 
                     : "white")
             }
             stroke={
               selectedNode 
                 ? (selectedNode.id === node.id ? "rgba(89, 89, 255, 1.0)" : "black") 
-                : "black"
+                : (highlightedNodes.has(node.id) ? "orange" : "black")
             }
-            strokeWidth={selectedNode ? (selectedNode.id === node.id ? 2 : 1) : 1}
+            strokeWidth={selectedNode 
+              ? (selectedNode.id === node.id ? 2 : 1) 
+              : (highlightedNodes.has(node.id) ? 3 : 1)
+            }
             perfectDrawEnabled={false}
           />
           
-          {/* Final state second circle */}
+          {/* Final state double circle */}
           {finiteNodes.has(node.id) && (
             <Circle
               x={0}
               y={0}
               radius={25}
-              stroke="black"
-              strokeWidth={1}
+              stroke={highlightedNodes.has(node.id) ? "orange" : "black"}
+              strokeWidth={highlightedNodes.has(node.id) ? 2 : 1}
               fill="transparent"
               perfectDrawEnabled={false}
             />
@@ -613,7 +836,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
             x={0 - node.id.length * 5 + 10}
             y={-7}
             text={node.id}
-            fill={currNode ? (currNode.id === node.id ? "white" : "black") : "black"}
+            fill={currNodes.has(node.id) ? "white" : "black"}
             fontSize={16}
             align="center"
             verticalAlign="middle"
