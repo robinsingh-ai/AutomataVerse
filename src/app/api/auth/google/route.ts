@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase-admin';
 
+// Add this at the top of your server-side Google auth handler file
+// This will suppress the punycode deprecation warning
+process.noDeprecation = true;
+
 export async function POST(req: NextRequest) {
   try {
     // Validate adminAuth
@@ -23,10 +27,14 @@ export async function POST(req: NextRequest) {
     }
     
     try {
-      console.log('Verifying Google ID token');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Verifying Google ID token');
+      }
       // Verify the ID token using Firebase Admin SDK
       const decodedToken = await adminAuth.verifyIdToken(idToken);
-      console.log('Token verified successfully for user:', decodedToken.uid);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Token verified successfully for user:', decodedToken.uid);
+      }
       
       // Get the user record
       const userRecord = await adminAuth.getUser(decodedToken.uid);
@@ -43,11 +51,15 @@ export async function POST(req: NextRequest) {
         message: 'Authentication successful'
       });
     } catch (tokenError: any) {
-      console.error('Token verification error:', tokenError);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Token verification error:', tokenError);
+      }
       
       // Check for credential-related errors
       if (tokenError.code === 'app/invalid-credential' || tokenError.code === 'auth/invalid-credential') {
-        console.error('Firebase credential error. Check your FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL environment variables.');
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Firebase credential error. Check your FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL environment variables.');
+        }
         return NextResponse.json(
           { error: 'Authentication service configuration error. Please contact support.' },
           { status: 500 }
@@ -70,7 +82,9 @@ export async function POST(req: NextRequest) {
     }
     
   } catch (error: any) {
-    console.error('Google sign-in error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Google sign-in error:', error);
+    }
     
     return NextResponse.json(
       { 
@@ -80,4 +94,9 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// For Firebase Admin initialization message:
+if (process.env.NODE_ENV === 'development') {
+  console.log('Firebase Admin initialized successfully');
 } 
