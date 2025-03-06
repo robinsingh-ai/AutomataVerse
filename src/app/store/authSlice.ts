@@ -1,15 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
   signOut,
-  updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
-  AuthError,
-  User
+  signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import axios, { AxiosError } from 'axios';
 
 export interface AuthState {
   user: {
@@ -20,55 +16,15 @@ export interface AuthState {
   } | null;
   loading: boolean;
   error: string | null;
+  message: string | null;
 }
 
 const initialState: AuthState = {
   user: null,
   loading: false,
   error: null,
+  message: null,
 };
-
-// Helper function to extract user data
-const extractUserData = (user: User) => ({
-  uid: user.uid,
-  email: user.email,
-  displayName: user.displayName,
-  photoURL: user.photoURL,
-});
-
-// Async thunks for authentication
-export const signupUser = createAsyncThunk(
-  'auth/signup',
-  async ({ email, password, displayName }: { email: string; password: string; displayName: string }, { rejectWithValue }) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Update profile with display name
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName,
-        });
-      }
-      
-      return extractUserData(userCredential.user);
-    } catch (error) {
-      const authError = error as AuthError;
-      return rejectWithValue(authError.message);
-    }
-  }
-);
-
-export const loginUser = createAsyncThunk(
-  'auth/login',
-  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return extractUserData(userCredential.user);
-    } catch (error) {
-      const authError = error as AuthError;
-      return rejectWithValue(authError.message);
-    }
-  }
-);
 
 // Google Sign-in thunk
 export const signInWithGoogle = createAsyncThunk(
@@ -81,17 +37,41 @@ export const signInWithGoogle = createAsyncThunk(
         prompt: 'select_account'  // Force account selection even when one account is available
       });
       
+      // First, sign in with Google using Firebase client SDK to get the ID token
       const userCredential = await signInWithPopup(auth, provider);
-      return extractUserData(userCredential.user);
-    } catch (error) {
-      const authError = error as AuthError;
       
-      // Special handling for popup closed by user error
-      if (authError.code === 'auth/popup-closed-by-user') {
-        return rejectWithValue('auth/popup-closed-by-user: Sign-in cancelled by user.');
+      // Get the ID token
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Verify the token on the server side
+      const response = await axios.post('/api/auth/google', { idToken });
+      
+      if (response.data.success) {
+        // Return the user data from the server response
+        return response.data.user;
+      } else {
+        return rejectWithValue('Failed to authenticate with Google');
+      }
+    } catch (error: unknown) {
+      // Handle Firebase client errors
+      if (error instanceof Error) {
+        const firebaseError = error as Error & { code?: string };
+        
+        // Special handling for popup closed by user error
+        if (firebaseError.code === 'auth/popup-closed-by-user') {
+          return rejectWithValue('auth/popup-closed-by-user: Sign-in cancelled by user.');
+        }
+        
+        return rejectWithValue(firebaseError.message || 'Failed to sign in with Google');
       }
       
-      return rejectWithValue(authError.message || 'Failed to sign in with Google');
+      // Handle Axios errors
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<{error: string}>;
+        return rejectWithValue(axiosError.response?.data?.error || 'Failed to authenticate with Google');
+      }
+      
+      return rejectWithValue('Failed to sign in with Google');
     }
   }
 );
@@ -100,11 +80,26 @@ export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
+      // First, call the server-side logout API
+      await axios.post('/api/auth/logout');
+      
+      // Then, sign out from Firebase client
       await signOut(auth);
+      
       return null;
-    } catch (error) {
-      const authError = error as AuthError;
-      return rejectWithValue(authError.message);
+    } catch (error: unknown) {
+      // Handle Firebase client errors
+      if (error instanceof Error) {
+        return rejectWithValue((error as Error).message);
+      }
+      
+      // Handle Axios errors
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<{error: string}>;
+        return rejectWithValue(axiosError.response?.data?.error || 'Failed to logout');
+      }
+      
+      return rejectWithValue('Failed to logout');
     }
   }
 );
@@ -119,48 +114,33 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    clearMessage: (state) => {
+      state.message = null;
+    },
   },
   extraReducers: (builder) => {
-    // Sign up cases
-    builder.addCase(signupUser.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(signupUser.fulfilled, (state, action) => {
-      state.loading = false;
-      state.user = action.payload;
-    });
-    builder.addCase(signupUser.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
-    
-    // Login cases
-    builder.addCase(loginUser.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(loginUser.fulfilled, (state, action) => {
-      state.loading = false;
-      state.user = action.payload;
-    });
-    builder.addCase(loginUser.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
-    
     // Google Sign-in cases
     builder.addCase(signInWithGoogle.pending, (state) => {
       state.loading = true;
       state.error = null;
+      state.message = null;
     });
     builder.addCase(signInWithGoogle.fulfilled, (state, action) => {
       state.loading = false;
       state.user = action.payload;
+      state.message = null;
     });
     builder.addCase(signInWithGoogle.rejected, (state, action) => {
       state.loading = false;
-      state.error = action.payload as string;
+      
+      // Check if the payload has both error and message properties
+      if (action.payload && typeof action.payload === 'object' && 'error' in action.payload && 'message' in action.payload) {
+        const payload = action.payload as { error: string; message: string };
+        state.error = payload.error;
+        state.message = payload.message;
+      } else {
+        state.error = action.payload as string;
+      }
     });
     
     // Logout cases
@@ -178,5 +158,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, clearError } = authSlice.actions;
+export const { setUser, clearError, clearMessage } = authSlice.actions;
 export default authSlice.reducer; 

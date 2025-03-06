@@ -32,12 +32,26 @@ const createStore = () => {
     });
   }
   
-  // Client-side - use persisted store
-  const storage = require('redux-persist/lib/storage').default;
+  // Client-side - use persisted store using dynamic import
+  // This import only happens in the browser
+  const localForage = import('redux-persist/lib/storage').then(module => module.default);
   
   const persistConfig = {
     key: 'root',
-    storage,
+    storage: {
+      getItem: async (key: string) => {
+        const storage = await localForage;
+        return storage.getItem(key);
+      },
+      setItem: async (key: string, value: string) => {
+        const storage = await localForage;
+        return storage.setItem(key, value);
+      },
+      removeItem: async (key: string) => {
+        const storage = await localForage;
+        return storage.removeItem(key);
+      }
+    },
     whitelist: ['auth'], // Only persist auth state
   };
   

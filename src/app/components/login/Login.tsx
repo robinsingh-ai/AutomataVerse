@@ -2,150 +2,50 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { loginUser, clearError, signInWithGoogle } from '../../store/authSlice';
-import Cookies from 'js-cookie';
+import { signInWithGoogle, clearError, clearMessage } from '../../store/authSlice';
 
 const Login = () => {
-  const router = useRouter();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [errors, setErrors] = useState({
-    email: '',
-    password: '',
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
+  // Simple state for component errors and loading
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [componentError, setComponentError] = useState('');
+  
   // Redux state
   const dispatch = useAppDispatch();
-  const { loading: authLoading, error: authError } = useAppSelector(state => state.auth);
+  const { loading, error, message } = useAppSelector(state => state.auth);
 
+  // Clear errors/messages on mount
   useEffect(() => {
-    setMounted(true);
     dispatch(clearError());
-    return () => setMounted(false);
+    dispatch(clearMessage());
   }, [dispatch]);
-
-  // Update component error state when auth error changes
+  
+  // Handle Redux error updates
   useEffect(() => {
-    if (authError) {
-      setErrors({
-        ...errors,
-        password: authError
-      });
+    if (error) {
+      setComponentError(error);
     }
-  }, [authError]);
+  }, [error]);
 
-  // Update loading state from Redux
+  // Handle loading state
   useEffect(() => {
-    setIsLoading(authLoading);
-  }, [authLoading]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    
-    // Clear error when user types
-    if (errors[name as keyof typeof errors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: '',
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    let isValid = true;
-    const newErrors = { ...errors };
-
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-      isValid = false;
-    }
-
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
-    try {
-      // Use Redux action to login with Firebase
-      await dispatch(loginUser({ 
-        email: formData.email,
-        password: formData.password 
-      })).unwrap();
-      
-      // Set cookie for middleware auth check
-      Cookies.set('authSession', 'true', { expires: 7 });
-      
-      // Redirect to home page after successful login
-      router.push('/');
-      
-    } catch (error) {
-      console.error('Login failed:', error);
-      // Error handling is done via Redux and useEffect above
-    }
-  };
+    setGoogleLoading(loading);
+  }, [loading]);
 
   // Handle Google Sign In
   const handleGoogleSignIn = async () => {
     try {
-      setIsGoogleLoading(true);
-      // Clear any previous errors
-      setErrors({
-        email: '',
-        password: ''
-      });
-      
+      setComponentError('');
       await dispatch(signInWithGoogle()).unwrap();
-      
-      // Set cookie for middleware auth check
-      Cookies.set('authSession', 'true', { expires: 7 });
-      
-      // Redirect to home page after successful login
-      router.push('/');
     } catch (error) {
       console.error('Google sign-in failed:', error);
       
-      // Check if the error is popup-closed-by-user
       if (error && typeof error === 'string' && error.includes('auth/popup-closed-by-user')) {
-        // This is not a critical error, just user closing the popup
-        setErrors({
-          ...errors,
-          password: 'Sign-in cancelled. You closed the Google login window.'
-        });
+        setComponentError('Sign-in cancelled. You closed the Google login window.');
       } else {
-        // For other errors, show a generic message
-        setErrors({
-          ...errors,
-          password: 'Failed to sign in with Google. Please try again.'
-        });
+        setComponentError('Failed to sign in with Google. Please try again.');
       }
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -229,7 +129,7 @@ const Login = () => {
         </div>
       </div>
       
-      {/* Right side - Login Form */}
+      {/* Right side - Login with Google */}
       <div className="md:w-1/2 flex flex-col p-8 md:p-12 justify-center">
         <div className="max-w-md w-full mx-auto">
           <div className="text-center mb-8">
@@ -242,133 +142,59 @@ const Login = () => {
             </p>
           </div>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`appearance-none block w-full px-3 py-3 border ${
-                  errors.email ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-700'
-                } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white transition-colors`}
-                placeholder="you@example.com"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-500">{errors.email}</p>
-              )}
+          {/* Success message */}
+          {message && (
+            <div className="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-md">
+              <p className="font-medium">{message}</p>
             </div>
-            
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Password
-                </label>
-                <Link href="/forgot-password" className="text-sm text-teal-600 hover:text-teal-500">
-                  Forgot your password?
-                </Link>
-              </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                value={formData.password}
-                onChange={handleChange}
-                className={`appearance-none block w-full px-3 py-3 border ${
-                  errors.password ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-700'
-                } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white transition-colors`}
-                placeholder="••••••••"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-500">{errors.password}</p>
-              )}
+          )}
+
+          {/* Error message */}
+          {componentError && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-md">
+              <p>{componentError}</p>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  Remember me
-                </label>
-              </div>
-            </div>
-            
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 ${
-                  isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500'
-                }`}
-              >
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in...
-                  </span>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </div>
-          </form>
+          )}
           
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-            
-            <div className="mt-6 grid grid-cols-1 gap-3">
+          <div className="space-y-6">
+            <div className="text-center">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">Sign in with your Google account</p>
+              
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
-                className={`w-full inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 ${
-                  isGoogleLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
+                disabled={googleLoading}
+                className="w-full flex items-center justify-center space-x-2 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 border border-gray-300 rounded-md shadow-sm px-4 py-2 transition duration-150"
               >
-                {isGoogleLoading ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700 dark:text-gray-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in with Google...
-                  </span>
+                {googleLoading ? (
+                  <svg className="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                 ) : (
-                  <>
-                    <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-2.62z" fill="#FBBC05" />
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                      <path d="M1 1h22v22H1z" fill="none" />
-                    </svg>
-                    Sign in with Google
-                  </>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
+                      <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
+                      <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
+                      <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
+                      <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
+                    </g>
+                  </svg>
                 )}
+                <span>{googleLoading ? 'Signing in...' : 'Continue with Google'}</span>
               </button>
+            </div>
+            
+            <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+              By signing in, you agree to our{' '}
+              <a href="#" className="text-teal-600 hover:text-teal-500">
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a href="#" className="text-teal-600 hover:text-teal-500">
+                Privacy Policy
+              </a>
+              .
             </div>
           </div>
         </div>
