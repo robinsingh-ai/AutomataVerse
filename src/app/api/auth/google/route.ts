@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase-admin';
 
-// Add this at the top of your server-side Google auth handler file
-// This will suppress the punycode deprecation warning
-process.noDeprecation = true;
+// Add silent logging helper
+const log = (message: string) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(message);
+  }
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,14 +30,10 @@ export async function POST(req: NextRequest) {
     }
     
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Verifying Google ID token');
-      }
+      log('Verifying Google ID token');
       // Verify the ID token using Firebase Admin SDK
       const decodedToken = await adminAuth.verifyIdToken(idToken);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Token verified successfully for user:', decodedToken.uid);
-      }
+      log('Token verified successfully for user:', decodedToken.uid);
       
       // Get the user record
       const userRecord = await adminAuth.getUser(decodedToken.uid);
@@ -51,9 +50,7 @@ export async function POST(req: NextRequest) {
         message: 'Authentication successful'
       });
     } catch (tokenError: any) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Token verification error:', tokenError);
-      }
+      log('Token verification error:', tokenError);
       
       // Check for credential-related errors
       if (tokenError.code === 'app/invalid-credential' || tokenError.code === 'auth/invalid-credential') {
@@ -82,10 +79,7 @@ export async function POST(req: NextRequest) {
     }
     
   } catch (error: any) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Google sign-in error:', error);
-    }
-    
+    log(`Error: ${error.message}`);
     return NextResponse.json(
       { 
         error: 'Failed to authenticate with Google. Please try again later.',
