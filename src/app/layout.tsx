@@ -3,6 +3,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ReduxProvider } from './context/ReduxProvider';
 import AuthStateListener from './context/AuthStateListener';
 import Script from 'next/script';
+import { Analytics } from "@vercel/analytics/react"
+
 
 export default function RootLayout({
   children,
@@ -48,7 +50,8 @@ export default function RootLayout({
       <body className="transition-colors duration-200">
         <ReduxProvider>
           <AuthStateListener>
-            <ThemeProvider>{children}</ThemeProvider>
+            <ThemeProvider>{children} <Analytics /></ThemeProvider>
+            
           </AuthStateListener>
         </ReduxProvider>
       </body>
