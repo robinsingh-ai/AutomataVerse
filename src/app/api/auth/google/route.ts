@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase-admin';
 
-// Add silent logging helper
-const log = (message: string) => {
+// Update the log function to accept multiple arguments
+const log = (...messages: any[]) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log(message);
+    console.log(...messages);
   }
 };
 
