@@ -11,16 +11,27 @@ Automata-Verse is an interactive educational platform for learning and experimen
 - **Nondeterministic Finite Automaton (NFA)** - Experiment with multiple possible state transitions
 - **Pushdown Automaton (PDA)** - Understand stack-based computation with visual stack representation
 - **Turing Machine (TM)** - Explore the power of Turing Machines with multi-tape support and intuitive tape visualization
+- **Finite State Machine (FSM)** - Moore and Mealy machines with output visualization
+
+### Cloud Features
+- **Cloud Save** - Save your automata designs securely to the cloud and access them from anywhere
+- **Sharing** - Generate shareable links to your automata designs for easy collaboration
+- **JSON Import/Export** - Load and save machines using JSON format for easy backup and migration
+
+### Interactive Testing
+- Test your machines with custom input strings 
+- Watch state transitions in real-time with step-by-step visualization
+- Visualize computation paths in all automata types
+
+### User Profiles
+- Create your personal profile to manage all your saved machines
+- Track your learning progress
+- Customize your learning experience
 
 ### Learning Resources
 - Comprehensive tutorials on automata theory
 - Interactive demonstrations with explanations
 - Step-by-step guides for building and understanding different automata models
-
-### User Profiles
-- Save your automata designs
-- Track your learning progress
-- Customize your learning experience
 
 ## Simulators in Detail
 

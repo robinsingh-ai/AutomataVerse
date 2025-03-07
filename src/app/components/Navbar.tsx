@@ -185,7 +185,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
               Demo
             </Link>
             
-            <Link href="/features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+            <Link href="/#features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
               Features
             </Link>
             
@@ -266,7 +266,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
           </Link>
           
           <Link 
-            href="/features" 
+            href="/#features" 
             className={`block px-3 py-2 rounded-md text-base font-medium ${
               currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
             }`}
