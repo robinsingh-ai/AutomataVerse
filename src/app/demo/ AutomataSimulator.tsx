@@ -48,17 +48,6 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     draggable: true
   });
   
-  // Initialize stage props with window dimensions after component mounts
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isClient) {
-      setStageProps(prev => ({
-        ...prev,
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2
-      }));
-    }
-  }, [isClient]);
-  
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [highlightedTransition, setHighlightedTransition] = useState<HighlightedTransition>({});
@@ -82,6 +71,17 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // Initialize stage props with window dimensions after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isClient) {
+      setStageProps(prev => ({
+        ...prev,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2
+      }));
+    }
+  }, [isClient]);
 
   // Check for DFA in URL params when component mounts
   useEffect(() => {
