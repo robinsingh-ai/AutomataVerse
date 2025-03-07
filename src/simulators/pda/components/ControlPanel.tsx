@@ -21,6 +21,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onReset,
   onLoadJson,
   onValidate,
+  stack,
+  onSave,
+  isLoggedIn
 }) => {
   const { theme } = useTheme();
   
@@ -73,6 +76,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           >
             Validate PDA
           </button>
+          
+          {isLoggedIn && onSave && (
+            <button
+              onClick={onSave}
+              className={`w-full font-semibold py-2 px-4 rounded ${
+                theme === 'dark'
+                  ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                  : 'bg-teal-500 hover:bg-teal-600 text-white'
+              }`}
+            >
+              Save Machine
+            </button>
+          )}
         </div>
         
         <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>

@@ -47,6 +47,18 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     scale: 1,
     draggable: true
   });
+  
+  // Initialize stage props with window dimensions after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isClient) {
+      setStageProps(prev => ({
+        ...prev,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2
+      }));
+    }
+  }, [isClient]);
+  
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [highlightedTransition, setHighlightedTransition] = useState<HighlightedTransition>({});

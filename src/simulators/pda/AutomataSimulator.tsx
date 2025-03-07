@@ -20,6 +20,10 @@ import {
 } from './utils/pdaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
+import { auth } from '../../lib/firebase';
+import { saveMachine } from '../../lib/machineService';
+import SaveMachineToast from '../../app/components/SaveMachineToast';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -37,6 +41,10 @@ interface PushdownAutomataSimulatorProps {
 const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPDA }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
+  
+  // Authentication state
+  const [user] = useAuthState(auth);
+  
   const [nodes, setNodes] = useState<Node[]>([]);
   const [nodeMap, setNodeMap] = useState<NodeMap>({});
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -51,6 +59,18 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     scale: 1,
     draggable: true
   });
+  
+  // Initialize stage props with window dimensions after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setStageProps(prev => ({
+        ...prev,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2
+      }));
+    }
+  }, []);
+  
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [highlightedTransitions, setHighlightedTransitions] = useState<HighlightedTransition[]>([]);
@@ -65,6 +85,10 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
   const [jsonInput, setJsonInput] = useState<string>('');
   const [stack, setStack] = useState<Stack>({ content: [] });
   const [currentConfiguration, setCurrentConfiguration] = useState<PDAState | null>(null);
+  
+  // Save machine state
+  const [showSaveToast, setShowSaveToast] = useState<boolean>(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
   
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -633,15 +657,69 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     try {
       // Create a URL with the encoded PDA
       const encodedPDA = encodePDAForURL(nodes, finiteNodes);
-      const url = `${window.location.origin}/simulator/pda?pda=${encodedPDA}`;
+      const relativePath = `/simulator/pda?pda=${encodedPDA}`;
+      const fullUrl = `${window.location.origin}${relativePath}`;
       
-      // Copy to clipboard
-      navigator.clipboard.writeText(url)
+      // Store the relative path for saving
+      setShareUrl(relativePath);
+      
+      // Copy full URL to clipboard
+      navigator.clipboard.writeText(fullUrl)
         .catch(err => {
           console.error('Failed to copy URL to clipboard:', err);
         });
     } catch (error) {
       console.error('Error generating shareable URL:', error);
+    }
+  };
+  
+  /**
+   * Open the save dialog
+   */
+  const handleSave = (): void => {
+    // Generate the share URL if it doesn't exist
+    if (!shareUrl) {
+      try {
+        const encodedPDA = encodePDAForURL(nodes, finiteNodes);
+        const relativePath = `/simulator/pda?pda=${encodedPDA}`;
+        setShareUrl(relativePath);
+      } catch (error) {
+        console.error('Error generating URL for saving:', error);
+        return;
+      }
+    }
+    
+    // Show the save toast
+    setShowSaveToast(true);
+  };
+  
+  /**
+   * Save the machine to Firebase
+   */
+  const handleSaveMachine = async (title: string, description: string): Promise<void> => {
+    if (!user) {
+      alert('You must be logged in to save a machine');
+      return;
+    }
+    
+    try {
+      // Save the machine to Firebase
+      await saveMachine({
+        userId: user.uid,
+        title,
+        description,
+        machineUrl: shareUrl,
+        machineType: 'Pushdown Automaton (PDA)'
+      });
+      
+      // Close the save toast
+      setShowSaveToast(false);
+      
+      // Show success message
+      alert('Machine saved successfully!');
+    } catch (error) {
+      console.error('Error saving machine:', error);
+      alert('Failed to save machine. Please try again.');
     }
   };
 
@@ -690,6 +768,8 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         onLoadJson={toggleJsonInput}
         onValidate={validateCurrentPDA}
         stack={stack}
+        onSave={handleSave}
+        isLoggedIn={!!user}
       />
       
       <PDAInfoPanel 
@@ -791,6 +871,13 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         jsonInput={jsonInput}
         setJsonInput={setJsonInput}
       />
+      
+      <SaveMachineToast
+        isOpen={showSaveToast}
+        onClose={() => setShowSaveToast(false)}
+        onSave={handleSaveMachine}
+      />
+      
     </div>
   );
 };

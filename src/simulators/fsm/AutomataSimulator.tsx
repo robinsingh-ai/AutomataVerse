@@ -22,6 +22,10 @@ import {
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
 import FSMInfoPanel from './components/FSMInfoPanel';
+import { auth } from '../../lib/firebase';
+import { saveMachine } from '../../lib/machineService';
+import SaveMachineToast from '../../app/components/SaveMachineToast';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -39,6 +43,10 @@ interface AutomataSimulatorProps {
 const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
+  
+  // Authentication state
+  const [user] = useAuthState(auth);
+  
   const [nodes, setNodes] = useState<Node[]>([]);
   const [nodeMap, setNodeMap] = useState<NodeMap>({});
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -53,6 +61,18 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
     scale: 1,
     draggable: true
   });
+  
+  // Initialize stage props with window dimensions after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setStageProps(prev => ({
+        ...prev,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2
+      }));
+    }
+  }, []);
+  
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [highlightedTransitions, setHighlightedTransitions] = useState<HighlightedTransition[]>([]);
@@ -69,6 +89,10 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
   const [outputSequence, setOutputSequence] = useState<string[]>([]);
   const [currentConfiguration, setCurrentConfiguration] = useState<FSMState | null>(null);
   const [machineType, setMachineType] = useState<MachineType>('Moore');
+  
+  // Save machine state
+  const [showSaveToast, setShowSaveToast] = useState<boolean>(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
   
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -650,15 +674,69 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
     try {
       // Create a URL with the encoded FSM
       const encodedMachine = encodeFSMForURL(nodes, finiteNodes, machineType);
-      const url = `${window.location.origin}/simulator/fsm?machine=${encodedMachine}`;
+      const relativePath = `/simulator/fsm?machine=${encodedMachine}`;
+      const fullUrl = `${window.location.origin}${relativePath}`;
       
-      // Copy to clipboard
-      navigator.clipboard.writeText(url)
+      // Store the relative path for saving
+      setShareUrl(relativePath);
+      
+      // Copy full URL to clipboard
+      navigator.clipboard.writeText(fullUrl)
         .catch(err => {
           console.error('Failed to copy URL to clipboard:', err);
         });
     } catch (error) {
       console.error('Error generating shareable URL:', error);
+    }
+  };
+  
+  /**
+   * Open the save dialog
+   */
+  const handleSave = (): void => {
+    // Generate the share URL if it doesn't exist
+    if (!shareUrl) {
+      try {
+        const encodedMachine = encodeFSMForURL(nodes, finiteNodes, machineType);
+        const relativePath = `/simulator/fsm?machine=${encodedMachine}`;
+        setShareUrl(relativePath);
+      } catch (error) {
+        console.error('Error generating URL for saving:', error);
+        return;
+      }
+    }
+    
+    // Show the save toast
+    setShowSaveToast(true);
+  };
+  
+  /**
+   * Save the machine to Firebase
+   */
+  const handleSaveMachine = async (title: string, description: string): Promise<void> => {
+    if (!user) {
+      alert('You must be logged in to save a machine');
+      return;
+    }
+    
+    try {
+      // Save the machine to Firebase
+      await saveMachine({
+        userId: user.uid,
+        title,
+        description,
+        machineUrl: shareUrl,
+        machineType: machineType === 'Moore' ? 'Moore Machine' : 'Mealy Machine'
+      });
+      
+      // Close the save toast
+      setShowSaveToast(false);
+      
+      // Show success message
+      alert('Machine saved successfully!');
+    } catch (error) {
+      console.error('Error saving machine:', error);
+      alert('Failed to save machine. Please try again.');
     }
   };
 
@@ -679,8 +757,6 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
     return null; // Return null on server side to prevent hydration mismatch
   }
 
-  const { inputAlphabet, outputAlphabet } = getSymbols();
-  const currentStateOutput = currNodes.size > 0 ? nodeMap[Array.from(currNodes)[0]]?.output || null : null;
 
   return (
     <div 
@@ -710,23 +786,21 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         onSetStateOutput={handleSetStateOutput}
         onMachineTypeChange={handleMachineTypeChange}
         machineType={machineType}
+        onSave={handleSave}
+        isLoggedIn={!!user}
       />
       
       <FSMInfoPanel 
-        states={nodes.map(node => node.id)} 
-        initialState={nodes.length > 0 ? 'q0' : null}
+        symbols={getSymbols()}
+        nodeCount={nodes.length}
         finalStates={Array.from(finiteNodes)}
-        inputAlphabet={inputAlphabet}
-        outputAlphabet={outputAlphabet}
-        currentState={Array.from(currNodes)[0] || null}
-        currentStateOutput={currentStateOutput}
+        transitionCount={nodes.reduce((count, node) => count + node.transitions.length, 0)}
         machineType={machineType}
       />
       
       <OutputPanel 
-        inputString={inputString}
-        outputSequence={outputSequence}
-        currentIndex={currentConfiguration?.inputIndex || 0}
+        machineType={machineType}
+        outputSequence={currentConfiguration?.outputSequence || []}
       />
       
       <TestInputPanel 
@@ -777,8 +851,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
             )}
           </Layer>
           
-          <Layer id="node-layer" perfectDrawEnabled={false}>
-            <DynamicNodeCanvas
+          <Layer id="node-layer">
+            <DynamicNodeCanvas 
               nodes={nodes}
               showGrid={showGrid}
               stageProps={stageProps}
@@ -798,35 +872,34 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         </Stage>
       </div>
       
-      {/* Transition Input Popup */}
-      {isPopupOpen && (
-        <InputPopup
-          isOpen={isPopupOpen}
-          onClose={handleInputClose}
-          onSubmit={handleSymbolInputSubmit}
-          isOutputPopup={false}
-          isMealyMachine={machineType === 'Mealy'}
-        />
-      )}
+      <InputPopup 
+        isOpen={isPopupOpen}
+        onClose={handleInputClose}
+        onSubmit={handleSymbolInputSubmit}
+        isMealyMachine={machineType === 'Mealy'}
+      />
       
-      {/* State Output Popup */}
-      {isOutputPopupOpen && selectedNode && (
-        <InputPopup
-          isOpen={isOutputPopupOpen}
-          onClose={handleOutputClose}
-          onSubmit={() => {}}
-          onOutputChange={handleOutputChange}
-          currentOutput={selectedNode.output}
-          isOutputPopup={true}
-        />
-      )}
+      <InputPopup 
+        isOpen={isOutputPopupOpen}
+        onClose={handleOutputClose}
+        onSubmit={() => {}}
+        onOutputChange={handleOutputChange}
+        currentOutput={selectedNode?.output || ''}
+        isOutputPopup={true}
+      />
       
       <JsonInputDialog
         isOpen={jsonInputOpen}
         onClose={() => setJsonInputOpen(false)}
-        onSubmit={handleJsonInputSubmit}
         jsonInput={jsonInput}
         setJsonInput={setJsonInput}
+        onSubmit={handleJsonInputSubmit}
+      />
+      
+      <SaveMachineToast
+        isOpen={showSaveToast}
+        onClose={() => setShowSaveToast(false)}
+        onSave={handleSaveMachine}
       />
     </div>
   );

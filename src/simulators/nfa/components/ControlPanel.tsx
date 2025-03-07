@@ -22,7 +22,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onLoadJson,
   onValidate,
   onToggleEpsilon,
-  allowEpsilon
+  allowEpsilon,
+  onSave,
+  isLoggedIn
 }) => {
   const { theme } = useTheme();
   
@@ -73,8 +75,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             onClick={onLoadJson}
             className={`w-full font-semibold py-2 px-4 rounded ${
               theme === 'dark'
-                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                : 'bg-purple-500 hover:bg-purple-600 text-white'
             }`}
           >
             Load NFA from JSON
@@ -84,12 +86,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             onClick={onValidate}
             className={`w-full font-semibold py-2 px-4 rounded ${
               theme === 'dark'
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-green-500 hover:bg-green-600 text-white'
+                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
             }`}
           >
             Validate NFA
           </button>
+          
+          {isLoggedIn && onSave && (
+            <button
+              onClick={onSave}
+              className={`w-full font-semibold py-2 px-4 rounded ${
+                theme === 'dark'
+                  ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                  : 'bg-teal-500 hover:bg-teal-600 text-white'
+              }`}
+            >
+              Save Machine
+            </button>
+          )}
         </div>
         
         <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>

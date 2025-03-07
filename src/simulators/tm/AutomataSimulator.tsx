@@ -24,6 +24,10 @@ import {
 } from './utils/tmSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
+import { auth, getCurrentUser } from '../../lib/firebase';
+import { saveMachine } from '../../lib/machineService';
+import SaveMachineToast from '../../app/components/SaveMachineToast';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -72,6 +76,24 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
   const [currentConfiguration, setCurrentConfiguration] = useState<TMState | null>(null);
   
   const stageRef = useRef<Konva.Stage>(null);
+
+  // Authentication state
+  const [user] = useAuthState(auth);
+  
+  // Save machine state
+  const [showSaveToast, setShowSaveToast] = useState<boolean>(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+
+  // Initialize stage props with window dimensions after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setStageProps(prev => ({
+        ...prev,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2
+      }));
+    }
+  }, []);
 
   // Function to create an empty tape
   function createEmptyTape(): Tape {
@@ -418,7 +440,6 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
     
     setCurrentConfiguration(currentConfig);
     setCurrNodes(new Set([currentConfig.stateId]));
-    setHighlightedNodes(new Set([currentConfig.stateId]));
     
     // Maximum step count to prevent infinite loops
     const MAX_STEPS = 1000;
@@ -436,7 +457,6 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         if (nextConfig && finiteNodes.has(nextConfig.stateId)) {
           setValidationResult("Input Accepted");
           setCurrNodes(new Set([nextConfig.stateId]));
-          setHighlightedNodes(new Set([nextConfig.stateId]));
           setTapes(nextConfig.tapes);
         } else {
           setValidationResult("Input Rejected");
@@ -471,7 +491,6 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
       currentConfig = nextConfig;
       setCurrentConfiguration(currentConfig);
       setCurrNodes(new Set([currentConfig.stateId]));
-      setHighlightedNodes(new Set([currentConfig.stateId]));
       setTapes(currentConfig.tapes);
       setStepIndex(stepCount + 1);
       
@@ -501,8 +520,7 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
       };
       
       setCurrentConfiguration(initialConfig);
-      setCurrNodes(new Set(['q0']));
-      setHighlightedNodes(new Set(['q0']));
+      setCurrNodes(new Set([initialConfig.stateId]));
       setTapes(initialTapes);
       return;
     }
@@ -515,7 +533,6 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
       if (nextConfig && finiteNodes.has(nextConfig.stateId)) {
         setValidationResult("Input Accepted");
         setCurrNodes(new Set([nextConfig.stateId]));
-        setHighlightedNodes(new Set([nextConfig.stateId]));
         setTapes(nextConfig.tapes);
       } else {
         setValidationResult("Input Rejected");
@@ -549,7 +566,6 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
     // Update the configuration
     setCurrentConfiguration(nextConfig);
     setCurrNodes(new Set([nextConfig.stateId]));
-    setHighlightedNodes(new Set([nextConfig.stateId]));
     setTapes(nextConfig.tapes);
     setStepIndex(prevStepIndex => prevStepIndex + 1);
   };
@@ -684,15 +700,69 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
     try {
       // Create a URL with the encoded TM
       const encodedTM = encodeTMForURL(nodes, finiteNodes, tapeMode);
-      const url = `${window.location.origin}/simulator/tm?tm=${encodedTM}`;
+      const relativePath = `/simulator/tm?tm=${encodedTM}`;
+      const fullUrl = `${window.location.origin}${relativePath}`;
       
-      // Copy to clipboard
-      navigator.clipboard.writeText(url)
+      // Store the relative path for saving
+      setShareUrl(relativePath);
+      
+      // Copy full URL to clipboard
+      navigator.clipboard.writeText(fullUrl)
         .catch(err => {
           console.error('Failed to copy URL to clipboard:', err);
         });
     } catch (error) {
       console.error('Error generating shareable URL:', error);
+    }
+  };
+
+  /**
+   * Open the save dialog
+   */
+  const handleSave = (): void => {
+    // Generate the share URL if it doesn't exist
+    if (!shareUrl) {
+      try {
+        const encodedTM = encodeTMForURL(nodes, finiteNodes, tapeMode);
+        const relativePath = `/simulator/tm?tm=${encodedTM}`;
+        setShareUrl(relativePath);
+      } catch (error) {
+        console.error('Error generating URL for saving:', error);
+        return;
+      }
+    }
+    
+    // Show the save toast
+    setShowSaveToast(true);
+  };
+
+  /**
+   * Save the machine to Firebase
+   */
+  const handleSaveMachine = async (title: string, description: string): Promise<void> => {
+    if (!user) {
+      alert('You must be logged in to save a machine');
+      return;
+    }
+    
+    try {
+      // Save the machine to Firebase
+      await saveMachine({
+        userId: user.uid,
+        title,
+        description,
+        machineUrl: shareUrl,
+        machineType: `Turing Machine (${tapeMode})`
+      });
+      
+      // Close the save toast
+      setShowSaveToast(false);
+      
+      // Show success message
+      alert('Machine saved successfully!');
+    } catch (error) {
+      console.error('Error saving machine:', error);
+      alert('Failed to save machine. Please try again.');
     }
   };
 
@@ -743,6 +813,8 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         tapeMode={tapeMode}
         onTapeModeChange={handleTapeModeChange}
         tapes={tapes}
+        onSave={handleSave}
+        isLoggedIn={!!user}
       />
       
       <TMInfoPanel 
@@ -751,7 +823,7 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         finalStates={Array.from(finiteNodes)}
         inputSymbols={inputSymbols}
         tapeSymbols={tapeSymbols}
-        currentState={Array.from(currNodes)[0] || null}
+        currentState={Array.from(currNodes).join(', ')}
         tapeMode={tapeMode}
       />
       
@@ -844,6 +916,13 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         onSubmit={handleJsonInputSubmit}
         jsonInput={jsonInput}
         setJsonInput={setJsonInput}
+      />
+      
+      {/* Save machine toast/modal */}
+      <SaveMachineToast
+        isOpen={showSaveToast}
+        onClose={() => setShowSaveToast(false)}
+        onSave={handleSaveMachine}
       />
     </div>
   );

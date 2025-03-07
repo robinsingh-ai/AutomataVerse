@@ -23,7 +23,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onValidate,
   onSetStateOutput,
   onMachineTypeChange,
-  machineType
+  machineType,
+  onSave,
+  isLoggedIn
 }) => {
   const { theme } = useTheme();
   
@@ -96,6 +98,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           >
             Validate Machine
           </button>
+          
+          {isLoggedIn && onSave && (
+            <button
+              onClick={onSave}
+              className={`w-full font-semibold py-2 px-4 rounded ${
+                theme === 'dark'
+                  ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                  : 'bg-teal-500 hover:bg-teal-600 text-white'
+              }`}
+            >
+              Save Machine
+            </button>
+          )}
         </div>
         
         {/* Machine Type Selection */}

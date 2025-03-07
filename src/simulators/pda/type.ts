@@ -43,6 +43,7 @@ export interface ControlPanelProps {
   onToggleGrid: () => void;
   onLoadJson: () => void;
   onValidate: () => void;
+  onSave?: () => void;
   inputString: string;
   validationResult: string | null;
   selectedNode: Node | null;
@@ -51,6 +52,7 @@ export interface ControlPanelProps {
   showGrid: boolean;
   stepIndex: number;
   stack: Stack;
+  isLoggedIn?: boolean;
 }
 
 // Input Popup Props for PDA

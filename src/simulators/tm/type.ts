@@ -47,6 +47,7 @@ export interface ControlPanelProps {
   onToggleGrid: () => void;
   onLoadJson: () => void;
   onValidate: () => void;
+  onSave?: () => void;
   inputString: string;
   validationResult: string | null;
   selectedNode: Node | null;
@@ -57,6 +58,7 @@ export interface ControlPanelProps {
   tapeMode: TapeMode;
   onTapeModeChange: (mode: TapeMode) => void;
   tapes: Tape[];
+  isLoggedIn?: boolean;
 }
 
 // Input Popup Props for TM

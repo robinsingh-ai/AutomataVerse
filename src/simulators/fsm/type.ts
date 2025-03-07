@@ -51,6 +51,7 @@ export interface ControlPanelProps {
   onValidate: () => void;
   onSetStateOutput?: (node: Node) => void;  // Prop for setting state output
   onMachineTypeChange?: (type: MachineType) => void; // Prop for changing machine type
+  onSave?: () => void; // New prop for saving the machine
   inputString: string;
   validationResult: string | null;
   selectedNode: Node | null;
@@ -59,6 +60,7 @@ export interface ControlPanelProps {
   showGrid: boolean;
   stepIndex: number;
   machineType: MachineType; // Current machine type
+  isLoggedIn?: boolean; // New prop to check if user is logged in
 }
 
 // Input Popup Props for FSM

@@ -6,24 +6,21 @@ import { useTheme } from '../../../app/context/ThemeContext';
 import { MachineType } from '../type';
 
 interface FSMInfoPanelProps {
-  states: string[];
-  initialState: string | null;
+  symbols: {
+    inputAlphabet: string[];
+    outputAlphabet: string[];
+  };
+  nodeCount: number;
   finalStates: string[];
-  inputAlphabet: string[];
-  outputAlphabet: string[];
-  currentState: string | null;
-  currentStateOutput: string | null;
+  transitionCount: number;
   machineType: MachineType;
 }
 
 const FSMInfoPanel: React.FC<FSMInfoPanelProps> = ({
-  states,
-  initialState,
+  symbols,
+  nodeCount,
   finalStates,
-  inputAlphabet,
-  outputAlphabet,
-  currentState,
-  currentStateOutput,
+  transitionCount,
   machineType
 }) => {
   const { theme } = useTheme();
@@ -45,7 +42,7 @@ const FSMInfoPanel: React.FC<FSMInfoPanelProps> = ({
             States:
           </h3>
           <div className={`p-2 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            {states.length > 0 ? states.join(', ') : 'None'}
+            Count: {nodeCount}
           </div>
         </div>
         
@@ -54,7 +51,7 @@ const FSMInfoPanel: React.FC<FSMInfoPanelProps> = ({
             Initial State:
           </h3>
           <div className={`p-2 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            {initialState || 'None'}
+            {nodeCount > 0 ? 'q0' : 'None'}
           </div>
         </div>
         
@@ -72,7 +69,7 @@ const FSMInfoPanel: React.FC<FSMInfoPanelProps> = ({
             Input Alphabet:
           </h3>
           <div className={`p-2 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            {inputAlphabet.length > 0 ? inputAlphabet.join(', ') : 'None'}
+            {symbols.inputAlphabet.length > 0 ? symbols.inputAlphabet.join(', ') : 'None'}
           </div>
         </div>
         
@@ -81,40 +78,18 @@ const FSMInfoPanel: React.FC<FSMInfoPanelProps> = ({
             Output Alphabet:
           </h3>
           <div className={`p-2 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            {outputAlphabet.length > 0 ? outputAlphabet.join(', ') : 'None'}
+            {symbols.outputAlphabet.length > 0 ? symbols.outputAlphabet.join(', ') : 'None'}
           </div>
         </div>
         
-        {currentState && (
-          <div>
-            <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Current State:
-            </h3>
-            <div className={`p-2 rounded ${
-              finalStates.includes(currentState)
-                ? theme === 'dark' ? "bg-green-800" : "bg-green-100"
-                : theme === 'dark' ? "bg-gray-700" : "bg-gray-100"
-            }`}>
-              {currentState}
-              {finalStates.includes(currentState) && 
-                <span className={`ml-2 text-xs ${theme === 'dark' ? "text-green-300" : "text-green-800"}`}>
-                  (Final)
-                </span>
-              }
-            </div>
+        <div>
+          <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+            Transitions:
+          </h3>
+          <div className={`p-2 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            Count: {transitionCount}
           </div>
-        )}
-        
-        {machineType === 'Moore' && currentStateOutput && (
-          <div>
-            <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Current Output:
-            </h3>
-            <div className={`p-2 rounded ${theme === 'dark' ? 'bg-blue-800' : 'bg-blue-100'}`}>
-              {currentStateOutput}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </DraggablePanel>
   );
