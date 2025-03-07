@@ -38,7 +38,7 @@ export default function Home() {
         {showBanner && (
           <div className="bg-red-500 text-white p-3 relative mb-6 mx-4 sm:mx-6 lg:mx-8 rounded">
             <div className="max-w-7xl mx-auto px-4 text-center">
-              <span className="font-medium">New features coming soon! Authentication system with advanced features are on the way.</span>
+              <span className="font-medium">Added new features! Authentication system with save and load machine feature.</span>
               <button 
                 onClick={() => setShowBanner(false)}
                 className="absolute right-4 top-3 text-white hover:text-gray-200"
