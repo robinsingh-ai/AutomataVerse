@@ -250,3 +250,70 @@ export const simulateDFA = (
     stateId: currentConfig.stateId 
   };
 };
+
+/**
+ * Batch tests a DFA against multiple test cases
+ * @param nodes The DFA nodes
+ * @param nodeMap The node map for quick lookups
+ * @param finalStates The set of accepting states
+ * @param acceptStrings Array of strings that should be accepted
+ * @param rejectStrings Array of strings that should be rejected
+ * @returns An object with the test results and details
+ */
+export const batchTestDFA = (
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  acceptStrings: string[],
+  rejectStrings: string[]
+): {
+  passed: boolean;
+  acceptResults: {string: string; accepted: boolean; expected: boolean}[];
+  rejectResults: {string: string; accepted: boolean; expected: boolean}[];
+  summary: string;
+} => {
+  const acceptResults = acceptStrings.map(str => {
+    const result = simulateDFA(nodes, nodeMap, finalStates, str);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: true
+    };
+  });
+  
+  const rejectResults = rejectStrings.map(str => {
+    const result = simulateDFA(nodes, nodeMap, finalStates, str);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: false
+    };
+  });
+  
+  // Check if all tests passed
+  const allAcceptPassed = acceptResults.every(result => result.accepted === result.expected);
+  const allRejectPassed = rejectResults.every(result => result.accepted === result.expected);
+  const passed = allAcceptPassed && allRejectPassed;
+  
+  // Generate summary
+  let summary = passed
+    ? `All tests passed! (${acceptStrings.length} accepted, ${rejectStrings.length} rejected)`
+    : `Some tests failed.`;
+    
+  if (!allAcceptPassed) {
+    const failedAccept = acceptResults.filter(r => !r.accepted).map(r => r.string);
+    summary += ` Failed to accept: ${failedAccept.join(', ')}`;
+  }
+  
+  if (!allRejectPassed) {
+    const failedReject = rejectResults.filter(r => r.accepted).map(r => r.string);
+    summary += ` Failed to reject: ${failedReject.join(', ')}`;
+  }
+  
+  return {
+    passed,
+    acceptResults,
+    rejectResults,
+    summary
+  };
+};

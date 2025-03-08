@@ -314,7 +314,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   };
 
   // Draw self-loop with improved label positioning
-  const drawSelfLoop = (x: number, y: number, nodeId: string, index: number, isHighlighted: boolean) => {
+  const drawSelfLoop = (x: number, y: number, nodeId: string, index: number | string, isHighlighted: boolean) => {
     const radius = 20;
     const loopRadius = 20;
     const angleOffset = Math.PI;
@@ -348,7 +348,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const maxLabelWidth = showCounter ? 60 : Math.max(...transitionLabels.map(label => label.length * 8)) + 10;
     
     return (
-      <Group key={`self-loop-${index}`} perfectDrawEnabled={false}
+      <Group key={`self-loop-${nodeId}-${index}`} perfectDrawEnabled={false}
         onMouseEnter={() => setHoveredTransition({ sourceId: nodeId, targetId: nodeId })}
         onMouseLeave={() => setHoveredTransition(null)}
       >
@@ -530,7 +530,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           
           // Self-loop
           if (sourceId === targetId) {
-            return drawSelfLoop(node.x, node.y, sourceId, index, isTransitionHighlighted(sourceId, targetId));
+            return drawSelfLoop(node.x, node.y, sourceId, `${sourceId}-${tindex}`, isTransitionHighlighted(sourceId, targetId));
           } 
           // Regular transition
           else {

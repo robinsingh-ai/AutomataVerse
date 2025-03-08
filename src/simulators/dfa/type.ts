@@ -40,7 +40,7 @@ export interface ControlPanelProps {
   onInputChange: (value: string) => void;
   onReset: () => void;
   onToggleGrid: () => void;
-  onLoadJson: () => void;
+  onLoadJson?: () => void;
   onValidate: () => void;
   onSave?: () => void;
   onClearCanvas: () => void;
@@ -52,6 +52,7 @@ export interface ControlPanelProps {
   showGrid: boolean;
   stepIndex: number;
   isLoggedIn?: boolean;
+  isProblemMode?: boolean;
 }
 
 // Input Popup Props for DFA

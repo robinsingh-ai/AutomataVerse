@@ -23,7 +23,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onValidate,
   onSave,
   onClearCanvas,
-  isLoggedIn
+  isLoggedIn,
+  isProblemMode
 }) => {
   const { theme } = useTheme();
   
@@ -48,153 +49,179 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               className={`w-full font-semibold py-2 px-4 rounded ${
                 theme === 'dark'
                   ? 'bg-gray-700 hover:bg-gray-800 text-white'
-                  : 'bg-gray-600 hover:bg-gray-700 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
               }`}
             >
-              Toggle Final State
+              Toggle Accepting State
             </button>
           )}
           
+          <div className="flex space-x-2">
+            <button
+              onClick={onRun}
+              disabled={isRunning}
+              className={`flex-1 font-semibold py-2 px-4 rounded ${
+                isRunning
+                  ? theme === 'dark'
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : theme === 'dark'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              Run
+            </button>
+            
+            <button
+              onClick={onStep}
+              disabled={isRunning && !isRunningStepWise}
+              className={`flex-1 font-semibold py-2 px-4 rounded ${
+                isRunning && !isRunningStepWise
+                  ? theme === 'dark'
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : theme === 'dark'
+                  ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                  : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+              }`}
+            >
+              Step
+            </button>
+            
+            <button
+              onClick={onReset}
+              className={`flex-1 font-semibold py-2 px-4 rounded ${
+                theme === 'dark'
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              }`}
+            >
+              Reset
+            </button>
+          </div>
+          
           <button
-            onClick={onLoadJson}
+            onClick={onClearCanvas}
             className={`w-full font-semibold py-2 px-4 rounded ${
               theme === 'dark'
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-purple-500 hover:bg-purple-600 text-white'
+                ? 'bg-red-700 hover:bg-red-800 text-white'
+                : 'bg-red-600 hover:bg-red-700 text-white'
             }`}
           >
-            Load DFA from JSON
+            Clear Canvas
+          </button>
+          
+          <button
+            onClick={() => onToggleGrid()}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-gray-700 hover:bg-gray-800 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+            }`}
+          >
+            {showGrid ? 'Hide Grid' : 'Show Grid'}
           </button>
           
           <button
             onClick={onValidate}
             className={`w-full font-semibold py-2 px-4 rounded ${
               theme === 'dark'
-                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                : 'bg-indigo-500 hover:bg-indigo-600 text-white'
             }`}
           >
             Validate DFA
           </button>
           
-          <button
-            onClick={onClearCanvas}
-            className={`w-full font-semibold py-2 px-4 rounded ${
-              theme === 'dark'
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white'
-            }`}
-          >
-            Clear Canvas
-          </button>
-          
-          {isLoggedIn && onSave && (
-            <button
-              onClick={onSave}
-              className={`w-full font-semibold py-2 px-4 rounded ${
-                theme === 'dark'
-                  ? 'bg-teal-600 hover:bg-teal-700 text-white'
-                  : 'bg-teal-500 hover:bg-teal-600 text-white'
-              }`}
-            >
-              Save DFA
-            </button>
+          {/* Only show load/save buttons in regular mode */}
+          {!isProblemMode && (
+            <>
+              {onLoadJson && (
+                <button
+                  onClick={onLoadJson}
+                  className={`w-full font-semibold py-2 px-4 rounded ${
+                    theme === 'dark'
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  }`}
+                >
+                  Load DFA from JSON
+                </button>
+              )}
+              
+              {onSave && isLoggedIn && (
+                <button
+                  onClick={onSave}
+                  className={`w-full font-semibold py-2 px-4 rounded ${
+                    theme === 'dark'
+                      ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                      : 'bg-teal-500 hover:bg-teal-600 text-white'
+                  }`}
+                >
+                  Save DFA
+                </button>
+              )}
+            </>
           )}
         </div>
         
-        <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            Input String
-          </label>
+        <div className="space-y-2">
+          <div
+            className={`text-sm font-medium ${
+              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+            }`}
+          >
+            Input String:
+          </div>
+          
           <input
             type="text"
-            placeholder="Enter String"
             value={inputString}
-            maxLength={38}
-            readOnly={isRunning || isRunningStepWise}
             onChange={(e) => onInputChange(e.target.value)}
-            className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            placeholder="Enter input string..."
+            className={`w-full px-3 py-2 border rounded ${
               theme === 'dark'
                 ? 'bg-gray-700 border-gray-600 text-white'
                 : 'bg-white border-gray-300 text-gray-900'
-            } ${
-              (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           />
-        </div>
-        
-        <div className="flex space-x-2 pt-2">
-          <button
-            onClick={onRun}
-            disabled={isRunning}
-            className={`flex-1 py-2 px-4 rounded font-semibold ${
-              isRunning 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : theme === 'dark'
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
-            }`}
-          >
-            Run
-          </button>
-          <button
-            onClick={onStep}
-            disabled={isRunning}
-            className={`flex-1 py-2 px-4 rounded font-semibold ${
-              isRunning 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : theme === 'dark'
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
-          >
-            Step
-          </button>
-          <button
-            onClick={onReset}
-            className={`flex-1 py-2 px-4 rounded font-semibold ${
-              theme === 'dark'
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white'
-            }`}
-          >
-            Reset
-          </button>
-        </div>
-        
-        <div className="pt-2">
-          <label className={`flex items-center space-x-2 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            <input
-              type="checkbox"
-              checked={showGrid}
-              onChange={onToggleGrid}
-              className={`rounded focus:ring-blue-500 ${
-                theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+          
+          {stepIndex > 0 && (
+            <div
+              className={`text-sm font-medium ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
               }`}
-            />
-            <span>Show Grid</span>
-          </label>
+            >
+              Step: {stepIndex}
+            </div>
+          )}
         </div>
         
         {validationResult && (
-          <div className={`mt-4 p-2 rounded ${
-            validationResult.includes("Valid") && !validationResult.includes("Invalid")
-              ? theme === 'dark' ? "bg-green-800 text-green-100" : "bg-green-100 text-green-800"
-              : validationResult.includes("Accept")
-                ? theme === 'dark' ? "bg-green-800 text-green-100" : "bg-green-100 text-green-800"
-                : validationResult.includes("Reject")
-                  ? theme === 'dark' ? "bg-red-800 text-red-100" : "bg-red-100 text-red-800"
-                  : theme === 'dark' ? "bg-red-800 text-red-100" : "bg-red-100 text-red-800"
-          }`}>
+          <div
+            className={`p-3 text-center rounded ${
+              validationResult === 'Input Accepted'
+                ? theme === 'dark'
+                  ? 'bg-green-900 text-green-100'
+                  : 'bg-green-100 text-green-800'
+                : validationResult === 'Input Rejected'
+                ? theme === 'dark'
+                  ? 'bg-red-900 text-red-100'
+                  : 'bg-red-100 text-red-800'
+                : theme === 'dark'
+                ? 'bg-yellow-900 text-yellow-100'
+                : 'bg-yellow-100 text-yellow-800'
+            }`}
+          >
             {validationResult}
           </div>
         )}
         
-        {isRunningStepWise && inputString && (
-          <div className="mt-4">
-            <p className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Step: {stepIndex}
-            </p>
+        {isProblemMode && (
+          <div className={`p-3 text-center rounded ${theme === 'dark' ? 'bg-blue-900 text-blue-100' : 'bg-blue-100 text-blue-800'}`}>
+            <span className="font-medium">Practice Mode</span>
+            <p className="text-sm mt-1">You're working on a DFA practice problem.</p>
           </div>
         )}
       </div>

@@ -166,6 +166,22 @@ Both simulators provide intuitive visualizations that make complex theoretical c
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
+### Building for Production
+
+To build the application for production with source code protection:
+
+```bash
+npm run build:secure
+npm start
+```
+
+## Security
+
+This project includes configurations to protect source code and problem solutions when deployed. See the following files for security guidance:
+
+- [SECURITY.md](./SECURITY.md) - General security guidelines
+- [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - Instructions for secure Vercel deployment
+
 ## Usage
 
 ### Creating a New Automaton

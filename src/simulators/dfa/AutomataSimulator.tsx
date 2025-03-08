@@ -15,7 +15,8 @@ import {
   deserializeDFA, 
   encodeDFAForURL, 
   validateDFA, 
-  getNextConfiguration
+  getNextConfiguration,
+  batchTestDFA
 } from './utils/dfaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
@@ -23,6 +24,7 @@ import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import SaveMachineToast from '../../app/components/SaveMachineToast';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import ProblemPanel from './components/ProblemPanel';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -35,9 +37,10 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
 
 interface DFASimulatorProps {
   initialDFA?: string; // Optional JSON string to initialize the DFA
+  problemId?: string; // Optional problem ID for practice problems
 }
 
-const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
+const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA, problemId }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   
@@ -64,8 +67,8 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
     if (typeof window !== 'undefined') {
       setStageProps(prev => ({
         ...prev,
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2
+        x: 0,
+        y: 0
       }));
     }
   }, []);
@@ -593,6 +596,30 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
     }, 100);
   };
 
+  /**
+   * Handles batch testing of the DFA against multiple strings
+   */
+  const handleBatchTest = (acceptStrings: string[], rejectStrings: string[]): {
+    passed: boolean;
+    acceptResults: { string: string; accepted: boolean; expected: boolean }[];
+    rejectResults: { string: string; accepted: boolean; expected: boolean }[];
+    summary: string;
+  } => {
+    // Validate the DFA first
+    const validationResult = validateDFA(nodes, finiteNodes);
+    if (!validationResult.isValid) {
+      return {
+        passed: false,
+        acceptResults: [],
+        rejectResults: [],
+        summary: `Cannot test: ${validationResult.errorMessage}`
+      };
+    }
+    
+    // Run the batch test
+    return batchTestDFA(nodes, nodeMap, finiteNodes, acceptStrings, rejectStrings);
+  };
+
   // Calculate all input symbols used in the transitions
   const getInputSymbols = (): string[] => {
     const inputSymbolsSet = new Set<string>();
@@ -694,6 +721,9 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
     return true;
   };
 
+  // Check if we're in problem mode
+  const isProblemMode = !!problemId;
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -708,7 +738,7 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
         cursor: stageProps.draggable && stageDragging ? 'grabbing' : stageProps.draggable ? 'grab' : 'default'
       }}
     >
-      <ControlPanel
+      <ControlPanel 
         onAddNode={handleAddNode}
         onSetFinite={handleSetFinite}
         onRun={handleRun}
@@ -723,11 +753,12 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
         onToggleGrid={() => setShowGrid(!showGrid)}
         stepIndex={stepIndex}
         onReset={resetSimulation}
-        onLoadJson={toggleJsonInput}
+        onLoadJson={isProblemMode ? undefined : toggleJsonInput}
         onValidate={validateCurrentDFA}
-        onSave={handleSave}
+        onSave={isProblemMode ? undefined : handleSave}
         onClearCanvas={clearCanvas}
         isLoggedIn={!!user}
+        isProblemMode={isProblemMode}
       />
       
       <DFAInfoPanel 
@@ -740,10 +771,21 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
         inputString={inputString}
       />
       
-      <TestInputPanel 
-        onTestInput={handleTestInput} 
-        onShareDFA={shareDFA}
-      />
+      {/* Only show TestInputPanel in regular mode (not when solving a problem) */}
+      {!isProblemMode && (
+        <TestInputPanel 
+          onTestInput={handleTestInput} 
+          onShareDFA={shareDFA}
+        />
+      )}
+      
+      {/* Only show the problem panel if problem info is provided */}
+      {isProblemMode && (
+        <ProblemPanel 
+          problemId={problemId}
+          onTestSolution={handleBatchTest}
+        />
+      )}
       
       <div 
         style={{ 

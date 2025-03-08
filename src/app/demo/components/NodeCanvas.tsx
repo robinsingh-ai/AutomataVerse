@@ -253,7 +253,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   };
 
   // Updated self-loop drawing to include animation when highlighted
-  const drawSelfLoop = (x: number, y: number, label: string, index: number, isHighlighted: boolean) => {
+  const drawSelfLoop = (x: number, y: number, label: string, index: string, isHighlighted: boolean) => {
     const radius = 20;
     const loopRadius = 20;
     const angleOffset = Math.PI;
@@ -264,7 +264,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const arrowAngle = Math.PI / 18;
 
     return (
-      <Group key={`self-loop-${index}`} perfectDrawEnabled={false}>
+      <Group key={index} perfectDrawEnabled={false}>
         {/* Draw animated or regular loop based on highlight state */}
         {isHighlighted ? (
           <Shape
@@ -348,177 +348,177 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     return (startY + 2 * controlY + endY) / 4 - 8;
   };
 
+  // Create edges from all transitions
+  const edges = nodes.flatMap(node => 
+    node.transitions.map(transition => ({
+      source: node,
+      target: nodeMap[transition.targetid],
+      label: transition.label
+    }))
+  ).filter(edge => edge.target); // Filter out any transitions to non-existent nodes
+  
   return (
     <>
       {/* Grid Background */}
       {showGrid && <Grid size={20} color="#9c9c9c" stageProps={stageProps} />}
 
       {/* Draw all transitions */}
-      {nodes.map((node, index) => 
-        node.transitions.map((transition, tindex) => {
-          const target = nodeMap[transition.targetid];
-          if (!target) return null;
-          
-          const edge = { 
-            source: node, 
-            target: target, 
-            label: transition.label 
-          };
-          
-          const isReverse = nodes.some(
-            (n) => n.id === transition.targetid && 
-            n.transitions.some((t) => t.targetid === node.id)
-          );
-          
-          // Self-loop
-          if (edge.source.id === edge.target.id) {
-            const isHighlighted = highlightedTransition && 
-              highlightedTransition.d?.targetid === transition.targetid && 
-              highlightedTransition.d?.label === transition.label && 
-              highlightedTransition.target === edge.source.id;
-              
-            return drawSelfLoop(edge.source.x, edge.source.y, edge.label, index, isHighlighted);
-          } 
-          // Regular transition
-          else {
-            const points = isReverse
-              ? calculateCurvedArrowPoints(
+      {edges.map((edge, index) => {
+        const isReverse = edges.some(
+          otherEdge => 
+            otherEdge.source.id === edge.target.id && 
+            otherEdge.target.id === edge.source.id &&
+            otherEdge !== edge
+        );
+        
+        // Self-loop
+        if (edge.source.id === edge.target.id) {
+          const isHighlighted = highlightedTransition && 
+            highlightedTransition.d?.targetid === edge.target.id && 
+            highlightedTransition.d?.label === edge.label && 
+            highlightedTransition.target === edge.source.id;
+            
+          return drawSelfLoop(edge.source.x, edge.source.y, edge.label, `${edge.source.id}-${index}`, isHighlighted);
+        } 
+        // Regular transition
+        else {
+          const points = isReverse
+            ? calculateCurvedArrowPoints(
+                edge.source.x,
+                edge.source.y,
+                edge.target.x,
+                edge.target.y,
+                calculateCurveStrength(
                   edge.source.x,
                   edge.source.y,
                   edge.target.x,
-                  edge.target.y,
-                  calculateCurveStrength(
-                    edge.source.x,
-                    edge.source.y,
-                    edge.target.x,
-                    edge.target.y
-                  ),
-                  20
+                  edge.target.y
+                ),
+                20
+              )
+            : calculateArrowPoints(
+                edge.source.x,
+                edge.source.y,
+                edge.target.x,
+                edge.target.y,
+                30
+              );
+          
+          const isHighlighted = highlightedTransition && 
+            highlightedTransition.d?.targetid === edge.target.id && 
+            highlightedTransition.d?.label === edge.label && 
+            highlightedTransition.target === edge.source.id;
+          
+          return (
+            <Group key={`${edge.source.id}-${edge.target.id}-${index}`} perfectDrawEnabled={false}>
+              {/* Draw either animated or regular arrow based on highlight state */}
+              {isHighlighted ? (
+                drawAnimatedEdge(
+                  points, 
+                  isReverse,
+                  animationProgress,
+                  "red"
                 )
-              : calculateArrowPoints(
-                  edge.source.x,
-                  edge.source.y,
-                  edge.target.x,
-                  edge.target.y,
-                  30
-                );
-            
-            const isHighlighted = highlightedTransition && 
-              highlightedTransition.d?.targetid === transition.targetid && 
-              highlightedTransition.d?.label === transition.label && 
-              highlightedTransition.target === edge.source.id;
-            
-            return (
-              <Group key={`${node.id}-${transition.targetid}-${tindex}`} perfectDrawEnabled={false}>
-                {/* Draw either animated or regular arrow based on highlight state */}
-                {isHighlighted ? (
-                  drawAnimatedEdge(
-                    points, 
-                    isReverse,
-                    animationProgress,
-                    "red"
-                  )
-                ) : (
-                  isReverse ? (
-                    <>
-                      <Shape
-                        sceneFunc={(context: Konva.Context, _shape: Konva.Shape) => {
-                          context.beginPath();
-                          context.moveTo(points.startX, points.startY);
-                          context.quadraticCurveTo(
-                            (points as CurvedArrowPoints).controlX, 
-                            (points as CurvedArrowPoints).controlY, 
-                            points.endX, 
-                            points.endY
-                          );
-                          context.stroke();
-                          context.strokeShape(_shape);
-                        }}
-                        stroke="black"
-                        strokeWidth={2}
-                        perfectDrawEnabled={false}
-                      />
-                      <Shape
-                        sceneFunc={(context: Konva.Context) => {
-                          context.beginPath();
-                          const arrowSize = 15;
-                          const angleToCenter = Math.atan2(
-                            edge.target.y - points.endY, 
-                            edge.target.x - points.endX
-                          );
-                          context.moveTo(points.endX, points.endY);
-                          context.lineTo(
-                            points.endX - arrowSize * Math.cos(angleToCenter + Math.PI / 6),
-                            points.endY - arrowSize * Math.sin(angleToCenter + Math.PI / 6)
-                          );
-                          context.lineTo(
-                            points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
-                            points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
-                          );
-                          context.closePath();
-                          context.fillStyle = "black";
-                          context.fill();
-                        }}
-                        perfectDrawEnabled={false}
-                      />
-                    </>
-                  ) : (
-                    <Arrow
-                      points={[
-                        points.startX, 
-                        points.startY, 
-                        points.endX, 
-                        points.endY
-                      ]}
+              ) : (
+                isReverse ? (
+                  <>
+                    <Shape
+                      sceneFunc={(context: Konva.Context, _shape: Konva.Shape) => {
+                        context.beginPath();
+                        context.moveTo(points.startX, points.startY);
+                        context.quadraticCurveTo(
+                          (points as CurvedArrowPoints).controlX, 
+                          (points as CurvedArrowPoints).controlY, 
+                          points.endX, 
+                          points.endY
+                        );
+                        context.stroke();
+                        context.strokeShape(_shape);
+                      }}
                       stroke="black"
-                      fill="black"
-                      pointerLength={10}
-                      pointerWidth={10}
+                      strokeWidth={2}
                       perfectDrawEnabled={false}
                     />
-                  )
-                )}
-                
-                {/* Label Text */}
-                <Group perfectDrawEnabled={false}>
-                  <Rect
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 3.2) - 3
-                      : (points.startX + points.endX - (edge.label.length * 6.5)) / 2 - 4
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 5 
-                      : (points.startY + points.endY) / 2 - 10
-                    }
-                    width={edge.label.length * 7 + 10}
-                    height={20}
-                    fill="white"
-                    opacity={0.8}
-                    cornerRadius={4}
-                    perfectDrawEnabled={false}
-                  />
-                  <Text
-                    x={isReverse 
-                      ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 6) / 2 
-                      : (points.startX + points.endX - (edge.label.length * 6)) / 2
-                    }
-                    y={isReverse 
-                      ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) 
-                      : (points.startY + points.endY - 15) / 2
-                    }
-                    text={edge.label}
-                    fontSize={16}
+                    <Shape
+                      sceneFunc={(context: Konva.Context) => {
+                        context.beginPath();
+                        const arrowSize = 15;
+                        const angleToCenter = Math.atan2(
+                          edge.target.y - points.endY, 
+                          edge.target.x - points.endX
+                        );
+                        context.moveTo(points.endX, points.endY);
+                        context.lineTo(
+                          points.endX - arrowSize * Math.cos(angleToCenter + Math.PI / 6),
+                          points.endY - arrowSize * Math.sin(angleToCenter + Math.PI / 6)
+                        );
+                        context.lineTo(
+                          points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
+                          points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
+                        );
+                        context.closePath();
+                        context.fillStyle = "black";
+                        context.fill();
+                      }}
+                      perfectDrawEnabled={false}
+                    />
+                  </>
+                ) : (
+                  <Arrow
+                    points={[
+                      points.startX, 
+                      points.startY, 
+                      points.endX, 
+                      points.endY
+                    ]}
+                    stroke="black"
                     fill="black"
-                    align="center"
-                    verticalAlign="middle"
+                    pointerLength={10}
+                    pointerWidth={10}
                     perfectDrawEnabled={false}
                   />
-                </Group>
+                )
+              )}
+              
+              {/* Label Text */}
+              <Group perfectDrawEnabled={false}>
+                <Rect
+                  x={isReverse 
+                    ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 3.2) - 3
+                    : (points.startX + points.endX - (edge.label.length * 6.5)) / 2 - 4
+                  }
+                  y={isReverse 
+                    ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) - 5 
+                    : (points.startY + points.endY) / 2 - 10
+                  }
+                  width={edge.label.length * 7 + 10}
+                  height={20}
+                  fill="white"
+                  opacity={0.8}
+                  cornerRadius={4}
+                  perfectDrawEnabled={false}
+                />
+                <Text
+                  x={isReverse 
+                    ? calculateMidpointX(points.startX, (points as CurvedArrowPoints).controlX, points.endX) - (edge.label.length * 6) / 2 
+                    : (points.startX + points.endX - (edge.label.length * 6)) / 2
+                  }
+                  y={isReverse 
+                    ? calculateMidpointY(points.startY, (points as CurvedArrowPoints).controlY, points.endY) 
+                    : (points.startY + points.endY - 15) / 2
+                  }
+                  text={edge.label}
+                  fontSize={16}
+                  fill="black"
+                  align="center"
+                  verticalAlign="middle"
+                  perfectDrawEnabled={false}
+                />
               </Group>
-            );
-          }
-        })
-      )}
+            </Group>
+          );
+        }
+      })}
 
       {/* Draw all nodes */}
       {nodes.map((node) => (

@@ -13,9 +13,17 @@ export default function DFASimulatorPage({ searchParams }: DFASimulatorPageProps
   // Get the DFA from URL parameters if available
   const dfaParam = searchParams?.dfa as string | undefined;
   
+  // Get problem ID if available
+  const problemId = searchParams?.problemId as string | undefined;
+  
   return (
     <>
-      {simulatorType === 'Automata' && <AutomataSimulator initialDFA={dfaParam} />}
+      {simulatorType === 'Automata' && (
+        <AutomataSimulator 
+          initialDFA={dfaParam} 
+          problemId={problemId}
+        />
+      )}
     </>
   );
 } 

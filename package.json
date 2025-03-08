@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:secure": "NODE_ENV=production NEXT_PUBLIC_SECURE_BUILD=true next build",
     "start": "next start",
     "lint": "next lint"
   },
