@@ -73,6 +73,56 @@ Our most powerful simulator offers:
 
 Each simulator features a consistent user interface making it easy to transition between different computational models while learning the unique capabilities and constraints of each.
 
+## Non-Determinism and Epsilon Transitions
+
+Automata-Verse includes advanced implementations for handling non-determinism and epsilon transitions, making it an ideal platform for exploring these powerful theoretical concepts.
+
+### Non-Deterministic Finite Automaton (NFA) Implementation
+
+Our NFA simulator features sophisticated algorithms for non-deterministic computation:
+
+#### Handling Non-Determinism
+- **Breadth-First Search (BFS)**: Systematically explores all possible computation paths using an efficient BFS algorithm
+- **Multiple Active States**: Tracks and visualizes all states the automaton could be in simultaneously
+- **Path Tracking**: Records the complete path from start to acceptance for educational visualization
+- **Visual Path Exploration**: Shows exactly which path led to acceptance or rejection
+
+#### Epsilon Transition Support
+- **Toggle Support**: Easily enable or disable epsilon transitions with a single click
+- **Epsilon Closure Computation**: Automatically computes the epsilon closure of states
+- **Validation**: Ensures epsilon transitions are valid when enabled
+- **Real-Time Updates**: Updates epsilon closures as transitions and states change
+
+#### Non-Deterministic Execution
+- **Two-Phase Simulation**:
+  1. **Search Phase**: Quickly searches for an accepting path without visualization
+  2. **Visualization Phase**: Once found, clearly shows the accepting path step-by-step
+- **Cycle Detection**: Prevents infinite loops in NFAs with cycles
+- **State Visualization**: Highlights all current states during simulation
+- **Transition Animation**: Clearly shows which transitions are being taken
+
+### Pushdown Automaton (PDA) Implementation
+
+Our PDA simulator extends non-deterministic capabilities with stack operations:
+
+#### Advanced Non-Determinism
+- **Stack-Aware Path Exploration**: Explores all possible paths while tracking stack configurations
+- **Accepting Path Visualization**: When a string is accepted, visualizes the exact path and stack operations that led to acceptance
+- **Context-Free Language Support**: Handles the full range of context-free languages through non-deterministic computation
+
+#### Comprehensive Stack Visualization
+- **Real-Time Stack Updates**: Visualizes stack operations (push/pop) in real time
+- **Stack History**: Tracks the complete stack history throughout the computation
+- **Operation Highlighting**: Clearly indicates which stack operations occur at each step
+
+#### Implementation Features
+- **Epsilon Transitions**: Full support for epsilon transitions that don't consume input
+- **Empty Stack Transitions**: Support for transitions on empty stack (ε)
+- **Multiple Transition Options**: Handles cases where multiple transitions could apply to the same input and stack configuration
+- **Comprehensive Acceptance Criteria**: Supports acceptance by final state and/or empty stack
+
+Both simulators provide intuitive visualizations that make complex theoretical concepts accessible to students and researchers, allowing for deep exploration of the power of non-determinism in computational models.
+
 ## Technologies Used
 
 - **Frontend**: Next.js, React, TypeScript
