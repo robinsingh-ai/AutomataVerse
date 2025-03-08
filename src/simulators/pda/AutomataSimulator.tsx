@@ -92,6 +92,15 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
   
   const stageRef = useRef<Konva.Stage>(null);
 
+  // Track all active configurations for non-deterministic exploration
+  const [activeConfigurations, setActiveConfigurations] = useState<{config: PDAState; path: PDAState[]}[]>([]);
+  const [visitedConfigs, setVisitedConfigs] = useState<Set<string>>(new Set());
+
+  // Track the accepting path for visualization
+  const [acceptingPath, setAcceptingPath] = useState<PDAState[]>([]);
+  const [isShowingAcceptingPath, setIsShowingAcceptingPath] = useState<boolean>(false);
+  const [acceptingPathStep, setAcceptingPathStep] = useState<number>(0);
+
   // Function to create an empty stack
   function createEmptyStack(): Stack {
     return { content: ['Z'] }; // Initialize with bottom marker 'Z'
@@ -330,6 +339,34 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     // Reset stack
     setStack(createEmptyStack());
     setCurrentConfiguration(null);
+    
+    // Reset non-deterministic exploration state
+    setActiveConfigurations([]);
+    setVisitedConfigs(new Set());
+    
+    // Reset accepting path visualization
+    setAcceptingPath([]);
+    setIsShowingAcceptingPath(false);
+    setAcceptingPathStep(0);
+  };
+
+  // Clear the entire canvas, resetting all nodes and the simulation state
+  const clearCanvas = (): void => {
+    // First reset the simulation
+    resetSimulation();
+    
+    // Then clear all nodes, nodeMap and other state
+    setNodes([]);
+    setNodeMap({});
+    setSelectedNode(null);
+    setFiniteNodes(new Set());
+    setInputString('');
+    
+    // Reset validation
+    setValidationResult(null);
+    
+    // Clear share URL
+    setShareUrl('');
   };
 
   // Initialize the PDA simulation
@@ -344,7 +381,7 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     };
   };
 
-  // PDA simulation
+  // Handle the Run button for automatic simulation
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
     
@@ -362,6 +399,9 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     setHighlightedTransitions([]);
     setValidationResult(null);
     setStepIndex(0);
+    setAcceptingPath([]);
+    setIsShowingAcceptingPath(false);
+    setAcceptingPathStep(0);
     
     // Initialize PDA with input
     const initialConfig = initializePDA(inputString);
@@ -370,168 +410,269 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     setCurrNodes(new Set([initialConfig.stateId]));
     setHighlightedNodes(new Set([initialConfig.stateId]));
     
-    // For visual simulation, we'll do a simple step-by-step approach
-    // (the real acceptance test uses a more sophisticated BFS algorithm)
+    // Queue for BFS, starting with the initial configuration
+    const queue: {config: PDAState; path: PDAState[]}[] = [
+      {config: initialConfig, path: [initialConfig]}
+    ];
     
-    // Maximum step count to prevent infinite loops
-    const MAX_STEPS = 100;
-    let stepCount = 0;
+    // Set to keep track of visited configurations
+    const visited = new Set<string>();
     
-    // Start with initial configuration
-    let currentConfig = initialConfig;
+    // First phase: Find accepting path with BFS
+    let foundAcceptingPath = false;
+    let acceptingPathFound: PDAState[] = [];
     
-    // Run the PDA until it halts or reaches max steps
-    while (stepCount < MAX_STEPS) {
-      await sleep(500); // Delay for animation
+    while (queue.length > 0 && !foundAcceptingPath) {
+      // Get the next configuration from the queue
+      const { config: currentConfig, path } = queue.shift()!;
       
-      // Get next configurations (could be multiple due to non-determinism)
-      const nextConfigs = getNextConfigurations(currentConfig, nodes, nodeMap, finiteNodes);
+      // Generate a string representation of the configuration to avoid cycles
+      const configStr = `${currentConfig.stateId},${currentConfig.inputPosition},${currentConfig.stack.content.join('')}`;
+      if (visited.has(configStr)) continue;
+      visited.add(configStr);
       
-      // If no valid transitions exist
-      if (nextConfigs.length === 0) {
-        // Check if we've reached the end of the input
-        if (currentConfig.inputPosition >= currentConfig.inputString.length) {
-          if (finiteNodes.has(currentConfig.stateId)) {
-            setValidationResult("Input Accepted");
-          } else {
-            setValidationResult("Input Rejected");
-          }
-        } else {
-          setValidationResult("Input Rejected");
-        }
-        
-        setIsRunning(false);
-        return;
-      }
-      
-      // For visualization, we'll take the first possible transition
-      // (real acceptance test handles all possibilities)
-      const nextConfig = nextConfigs[0];
-      
-      // Check if we're halted
-      if (nextConfig.halted) {
-        if (nextConfig.accepted) {
-          setValidationResult("Input Accepted");
-        } else {
-          setValidationResult("Input Rejected");
-        }
-        
-        setIsRunning(false);
-        return;
-      }
-      
-      // Highlight the transition
-      const currentNode = nodeMap[currentConfig.stateId];
-      
-      if (currentNode) {
-        // Find the transition that was taken
-        const transition = currentNode.transitions.find(t => 
-          t.targetid === nextConfig.stateId
-        );
-        
-        if (transition) {
-          setHighlightedTransitions([{
-            d: transition,
-            target: currentConfig.stateId
-          }]);
-        }
-      }
-      
-      // Update the configuration
-      currentConfig = nextConfig;
-      setCurrentConfiguration(currentConfig);
-      setCurrNodes(new Set([currentConfig.stateId]));
-      setHighlightedNodes(new Set([currentConfig.stateId]));
-      setStack(currentConfig.stack);
-      setStepIndex(stepCount + 1);
-      
-      // If we've consumed all input and reached a final state, we're done
+      // Check if we've reached an accepting state
       if (currentConfig.inputPosition >= currentConfig.inputString.length && 
           finiteNodes.has(currentConfig.stateId)) {
-        setValidationResult("Input Accepted");
-        setIsRunning(false);
-        return;
+        // We found an accepting path!
+        foundAcceptingPath = true;
+        acceptingPathFound = path;
+        break;
       }
       
-      stepCount++;
+      // Get all possible next configurations from this point
+      const nextConfigs = getNextConfigurations(currentConfig, nodes, nodeMap, finiteNodes);
+      
+      // Add all next configurations to the queue with their paths
+      for (const nextConfig of nextConfigs) {
+        if (nextConfig.halted) {
+          if (nextConfig.accepted) {
+            // Found an accepting configuration!
+            foundAcceptingPath = true;
+            acceptingPathFound = [...path, nextConfig];
+            break;
+          }
+          continue; // Skip halted non-accepting configurations
+        }
+        
+        queue.push({
+          config: nextConfig,
+          path: [...path, nextConfig]
+        });
+      }
     }
     
-    // Check if we reached MAX_STEPS (potential infinite loop)
-    if (stepCount >= MAX_STEPS) {
-      setValidationResult("Halting problem: Reached maximum step count");
+    // If we found an accepting path, visualize it
+    if (foundAcceptingPath) {
+      setAcceptingPath(acceptingPathFound);
+      setValidationResult("Input Accepted - Visualizing accepting path");
+      
+      // Second phase: Visualize the accepting path step by step
+      setIsShowingAcceptingPath(true);
+      
+      for (let i = 0; i < acceptingPathFound.length; i++) {
+        // Delay for animation
+        await sleep(500);
+        
+        const currentConfig = acceptingPathFound[i];
+        
+        // Update UI with current configuration
+        setCurrentConfiguration(currentConfig);
+        setStack(currentConfig.stack);
+        setCurrNodes(new Set([currentConfig.stateId]));
+        setHighlightedNodes(new Set([currentConfig.stateId]));
+        setAcceptingPathStep(i);
+        setStepIndex(i);
+        
+        // Visualize the transition if not the first state
+        if (i > 0) {
+          const prevConfig = acceptingPathFound[i-1];
+          const prevNode = nodeMap[prevConfig.stateId];
+          
+          if (prevNode) {
+            // Find the transition that was taken
+            const transition = prevNode.transitions.find(t => 
+              t.targetid === currentConfig.stateId
+            );
+            
+            if (transition) {
+              setHighlightedTransitions([{
+                d: transition,
+                target: prevConfig.stateId
+              }]);
+            }
+          }
+        }
+      }
+      
+      setValidationResult("Input Accepted");
+    } else {
+      // If we didn't find an accepting path
+      setValidationResult("Input Rejected - No accepting path found");
     }
     
     setIsRunning(false);
   };
 
+  // Handle step-by-step simulation
   const handleStepWise = async (): Promise<void> => {
     if (selectedNode) setSelectedNode(null);
     
-    if (!currentConfiguration) {
-      // First step - initialize
-      const initialConfig = initializePDA(inputString);
+    // If we're already showing an accepting path, continue through it
+    if (isShowingAcceptingPath) {
+      const nextStep = acceptingPathStep + 1;
       
+      if (nextStep < acceptingPath.length) {
+        const currentConfig = acceptingPath[nextStep];
+        const prevConfig = acceptingPath[nextStep - 1];
+        
+        // Update UI with current configuration
+        setCurrentConfiguration(currentConfig);
+        setStack(currentConfig.stack);
+        setCurrNodes(new Set([currentConfig.stateId]));
+        setHighlightedNodes(new Set([currentConfig.stateId]));
+        setAcceptingPathStep(nextStep);
+        setStepIndex(nextStep);
+        
+        // Visualize the transition
+        const prevNode = nodeMap[prevConfig.stateId];
+        
+        if (prevNode) {
+          const transition = prevNode.transitions.find(t => 
+            t.targetid === currentConfig.stateId
+          );
+          
+          if (transition) {
+            setHighlightedTransitions([{
+              d: transition,
+              target: prevConfig.stateId
+            }]);
+          }
+        }
+        
+        // If we reached the end of the accepting path
+        if (nextStep === acceptingPath.length - 1) {
+          setValidationResult("Input Accepted");
+          setIsRunningStepWise(false);
+        }
+      } else {
+        // We've finished visualizing the accepting path
+        setIsShowingAcceptingPath(false);
+        setIsRunningStepWise(false);
+      }
+      
+      return;
+    }
+    
+    // Step 1: Initialize if first step
+    if (!isRunningStepWise) {
+      setIsRunningStepWise(true);
+      const initialConfig = initializePDA(inputString);
       setCurrentConfiguration(initialConfig);
       setCurrNodes(new Set(['q0']));
       setHighlightedNodes(new Set(['q0']));
       setStack(initialConfig.stack);
+      setStepIndex(0);
+      
+      // Initialize the active configurations queue with the initial configuration
+      setActiveConfigurations([{ config: initialConfig, path: [initialConfig] }]);
+      setVisitedConfigs(new Set());
       return;
     }
     
-    // Get next configurations
-    const nextConfigs = getNextConfigurations(currentConfiguration, nodes, nodeMap, finiteNodes);
-    
-    // If no valid transitions exist or we've halted
-    if (nextConfigs.length === 0) {
-      // Check if we're in a final state and have consumed all input
-      if (currentConfiguration.inputPosition >= currentConfiguration.inputString.length && 
-          finiteNodes.has(currentConfiguration.stateId)) {
-        setValidationResult("Input Accepted");
-      } else {
-        setValidationResult("Input Rejected");
-      }
-      
+    // If we have no active configurations, we're done
+    if (activeConfigurations.length === 0) {
+      setValidationResult("Input Rejected - No more paths to explore");
       setIsRunningStepWise(false);
       return;
     }
     
-    // For visualization, take the first possible transition
-    const nextConfig = nextConfigs[0];
+    // Get the next configuration from the queue
+    const { config: currentConfig, path } = activeConfigurations[0];
+    const newActiveConfigurations = activeConfigurations.slice(1);
     
-    // Check if we've halted
-    if (nextConfig.halted) {
-      if (nextConfig.accepted) {
-        setValidationResult("Input Accepted");
-      } else {
-        setValidationResult("Input Rejected");
-      }
-      
-      setIsRunningStepWise(false);
-      return;
-    }
-    
-    // Highlight the transition
-    const currentNode = nodeMap[currentConfiguration.stateId];
-    
-    if (currentNode) {
-      const transition = currentNode.transitions.find(t => 
-        t.targetid === nextConfig.stateId
-      );
-      
-      if (transition) {
-        setHighlightedTransitions([{
-          d: transition,
-          target: currentConfiguration.stateId
-        }]);
-      }
-    }
-    
-    // Update the configuration
-    setCurrentConfiguration(nextConfig);
-    setCurrNodes(new Set([nextConfig.stateId]));
-    setHighlightedNodes(new Set([nextConfig.stateId]));
-    setStack(nextConfig.stack);
+    // Update the UI with the current configuration
+    setCurrentConfiguration(currentConfig);
+    setCurrNodes(new Set([currentConfig.stateId]));
+    setHighlightedNodes(new Set([currentConfig.stateId]));
+    setStack(currentConfig.stack);
     setStepIndex(prevStepIndex => prevStepIndex + 1);
+    
+    // Check if this configuration is an accepting state
+    if (currentConfig.inputPosition >= currentConfig.inputString.length && 
+        finiteNodes.has(currentConfig.stateId)) {
+      // Found an accepting path! Save it for visualization
+      setAcceptingPath(path);
+      setIsShowingAcceptingPath(true);
+      setAcceptingPathStep(0);
+      setValidationResult("Input Accepted - Press Step to see the accepting path");
+      return;
+    }
+    
+    // Generate a string representation of the configuration to avoid cycles
+    const configStr = `${currentConfig.stateId},${currentConfig.inputPosition},${currentConfig.stack.content.join('')}`;
+    const newVisitedConfigs = new Set(visitedConfigs);
+    
+    // Skip if we've already processed this configuration
+    if (visitedConfigs.has(configStr)) {
+      setActiveConfigurations(newActiveConfigurations);
+      return;
+    }
+    
+    newVisitedConfigs.add(configStr);
+    setVisitedConfigs(newVisitedConfigs);
+    
+    // Get all possible next configurations
+    const nextConfigs = getNextConfigurations(currentConfig, nodes, nodeMap, finiteNodes);
+    
+    // Visualize the transition if we have one
+    if (path.length > 1) {
+      const prevConfig = path[path.length - 2];
+      const prevNode = nodeMap[prevConfig.stateId];
+      
+      if (prevNode) {
+        const transition = prevNode.transitions.find(t => 
+          t.targetid === currentConfig.stateId
+        );
+        
+        if (transition) {
+          setHighlightedTransitions([{
+            d: transition,
+            target: prevConfig.stateId
+          }]);
+        }
+      }
+    }
+    
+    // Process each next configuration
+    for (const nextConfig of nextConfigs) {
+      if (nextConfig.halted) {
+        if (nextConfig.accepted) {
+          // Found an accepting configuration!
+          setAcceptingPath([...path, nextConfig]);
+          setIsShowingAcceptingPath(true);
+          setAcceptingPathStep(0);
+          setValidationResult("Input Accepted - Press Step to see the accepting path");
+          return;
+        }
+        continue; // Skip halted non-accepting configurations
+      }
+      
+      // Add to the queue of active configurations
+      newActiveConfigurations.push({
+        config: nextConfig,
+        path: [...path, nextConfig]
+      });
+    }
+    
+    // Update the active configurations
+    setActiveConfigurations(newActiveConfigurations);
+    
+    // If we have no more configurations to explore, we're done
+    if (newActiveConfigurations.length === 0) {
+      setValidationResult("Input Rejected - No more paths to explore");
+      setIsRunningStepWise(false);
+    }
   };
 
   const onStepWiseClick = (): void => {
@@ -756,19 +897,20 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         onRun={handleRun}
         onStep={onStepWiseClick}
         onInputChange={(val) => setInputString(val)}
+        onReset={resetSimulation}
+        onToggleGrid={() => setShowGrid(!showGrid)}
+        onLoadJson={toggleJsonInput}
+        onValidate={validateCurrentPDA}
+        onSave={handleSave}
+        onClearCanvas={clearCanvas}
         inputString={inputString}
         validationResult={validationResult}
         selectedNode={selectedNode}
-        isRunning={isRunning}
+        isRunning={isRunning || isRunningStepWise}
         isRunningStepWise={isRunningStepWise}
         showGrid={showGrid}
-        onToggleGrid={() => setShowGrid(!showGrid)}
         stepIndex={stepIndex}
-        onReset={resetSimulation}
-        onLoadJson={toggleJsonInput}
-        onValidate={validateCurrentPDA}
         stack={stack}
-        onSave={handleSave}
         isLoggedIn={!!user}
       />
       

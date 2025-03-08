@@ -52,6 +52,7 @@ export interface ControlPanelProps {
   onSetStateOutput?: (node: Node) => void;  // Prop for setting state output
   onMachineTypeChange?: (type: MachineType) => void; // Prop for changing machine type
   onSave?: () => void; // New prop for saving the machine
+  onClearCanvas: () => void; // New prop for clearing the canvas
   inputString: string;
   validationResult: string | null;
   selectedNode: Node | null;

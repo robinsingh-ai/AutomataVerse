@@ -355,6 +355,25 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
     setCurrentConfiguration(null);
   };
 
+  // Clear the entire canvas, resetting all nodes and the simulation state
+  const clearCanvas = (): void => {
+    // First reset the simulation
+    resetSimulation();
+    
+    // Then clear all nodes, nodeMap and other state
+    setNodes([]);
+    setNodeMap({});
+    setSelectedNode(null);
+    setFiniteNodes(new Set());
+    setInputString('');
+    
+    // Reset validation
+    setValidationResult(null);
+    
+    // Clear share URL
+    setShareUrl('');
+  };
+
   // Initialize the NFA simulation
   const initializeNFA = (input: string): NFAState => {
     let initialStates = new Set<string>(['q0']);
@@ -899,6 +918,7 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
         onToggleEpsilon={handleToggleEpsilon}
         allowEpsilon={allowEpsilon}
         onSave={handleSave}
+        onClearCanvas={clearCanvas}
         isLoggedIn={!!user}
       />
       

@@ -48,6 +48,7 @@ export interface ControlPanelProps {
   onLoadJson: () => void;
   onValidate: () => void;
   onSave?: () => void;
+  onClearCanvas: () => void;
   inputString: string;
   validationResult: string | null;
   selectedNode: Node | null;

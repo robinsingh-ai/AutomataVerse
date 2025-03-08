@@ -22,6 +22,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onLoadJson,
   onValidate,
   onSave,
+  onClearCanvas,
   isLoggedIn
 }) => {
   const { theme } = useTheme();
@@ -50,7 +51,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   : 'bg-gray-600 hover:bg-gray-700 text-white'
               }`}
             >
-              Toggle Accepting State
+              Toggle Final State
             </button>
           )}
           
@@ -76,6 +77,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             Validate DFA
           </button>
           
+          <button
+            onClick={onClearCanvas}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
+          >
+            Clear Canvas
+          </button>
+          
           {isLoggedIn && onSave && (
             <button
               onClick={onSave}
@@ -85,7 +97,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   : 'bg-teal-500 hover:bg-teal-600 text-white'
               }`}
             >
-              Save Machine
+              Save DFA
             </button>
           )}
         </div>

@@ -326,6 +326,25 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
     setCurrentConfiguration(null);
   };
 
+  // Clear the entire canvas, resetting all nodes and the simulation state
+  const clearCanvas = (): void => {
+    // First reset the simulation
+    resetSimulation();
+    
+    // Then clear all nodes, nodeMap and other state
+    setNodes([]);
+    setNodeMap({});
+    setSelectedNode(null);
+    setFiniteNodes(new Set());
+    setInputString('');
+    
+    // Reset validation
+    setValidationResult(null);
+    
+    // Clear share URL
+    setShareUrl('');
+  };
+
   // Initialize the DFA simulation
   const initializeDFA = (input: string): DFAState => {
     return {
@@ -707,6 +726,7 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA }) => {
         onLoadJson={toggleJsonInput}
         onValidate={validateCurrentDFA}
         onSave={handleSave}
+        onClearCanvas={clearCanvas}
         isLoggedIn={!!user}
       />
       

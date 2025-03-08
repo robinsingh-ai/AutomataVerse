@@ -391,6 +391,25 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
     setCurrentConfiguration(null);
   };
 
+  // Clear the entire canvas, resetting all nodes and the simulation state
+  const clearCanvas = (): void => {
+    // First reset the simulation
+    resetSimulation();
+    
+    // Then clear all nodes, nodeMap and other state
+    setNodes([]);
+    setNodeMap({});
+    setSelectedNode(null);
+    setFiniteNodes(new Set());
+    setInputString('');
+    
+    // Reset validation
+    setValidationResult(null);
+    
+    // Clear share URL
+    setShareUrl('');
+  };
+
   // FSM simulation
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
@@ -787,6 +806,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         onMachineTypeChange={handleMachineTypeChange}
         machineType={machineType}
         onSave={handleSave}
+        onClearCanvas={clearCanvas}
         isLoggedIn={!!user}
       />
       

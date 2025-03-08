@@ -44,6 +44,7 @@ export interface ControlPanelProps {
   onValidate: () => void;
   onToggleEpsilon: () => void;
   onSave?: () => void;
+  onClearCanvas: () => void;
   inputString: string;
   validationResult: string | null;
   selectedNode: Node | null;

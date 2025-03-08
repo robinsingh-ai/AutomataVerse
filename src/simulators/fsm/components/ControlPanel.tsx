@@ -25,6 +25,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onMachineTypeChange,
   machineType,
   onSave,
+  onClearCanvas,
   isLoggedIn
 }) => {
   const { theme } = useTheme();
@@ -97,6 +98,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             }`}
           >
             Validate Machine
+          </button>
+          
+          <button
+            onClick={onClearCanvas}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
+          >
+            Clear Canvas
           </button>
           
           {isLoggedIn && onSave && (

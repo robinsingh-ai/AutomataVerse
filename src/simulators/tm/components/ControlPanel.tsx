@@ -25,7 +25,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onTapeModeChange,
   tapes,
   onSave,
-  isLoggedIn
+  isLoggedIn,
+  onClearCanvas
 }) => {
   const { theme } = useTheme();
   
@@ -91,6 +92,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               Save Machine
             </button>
           )}
+          
+          <button
+            onClick={onClearCanvas}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
+          >
+            Clear Canvas
+          </button>
         </div>
         
         {/* TM Type Selection */}

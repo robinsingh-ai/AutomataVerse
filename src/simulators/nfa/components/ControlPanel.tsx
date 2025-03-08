@@ -24,6 +24,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onToggleEpsilon,
   allowEpsilon,
   onSave,
+  onClearCanvas,
   isLoggedIn
 }) => {
   const { theme } = useTheme();
@@ -52,23 +53,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   : 'bg-gray-600 hover:bg-gray-700 text-white'
               }`}
             >
-              Toggle Accepting State
+              Toggle Final State
             </button>
           )}
           
           <button
             onClick={onToggleEpsilon}
             className={`w-full font-semibold py-2 px-4 rounded ${
-              allowEpsilon
-                ? theme === 'dark'
-                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                  : 'bg-purple-500 hover:bg-purple-600 text-white'
-                : theme === 'dark'
-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                  : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+              allowEpsilon 
+                ? theme === 'dark' 
+                  ? 'bg-green-600 hover:bg-green-700 text-white' 
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+                : theme === 'dark' 
+                  ? 'bg-red-600 hover:bg-red-700 text-white' 
+                  : 'bg-red-500 hover:bg-red-600 text-white'
             }`}
           >
-            {allowEpsilon ? 'Disable ε-Transitions' : 'Enable ε-Transitions'}
+            {allowEpsilon ? 'Disable ε-transitions' : 'Enable ε-transitions'}
           </button>
           
           <button
@@ -93,6 +94,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             Validate NFA
           </button>
           
+          <button
+            onClick={onClearCanvas}
+            className={`w-full font-semibold py-2 px-4 rounded ${
+              theme === 'dark'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
+          >
+            Clear Canvas
+          </button>
+          
           {isLoggedIn && onSave && (
             <button
               onClick={onSave}
@@ -102,7 +114,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   : 'bg-teal-500 hover:bg-teal-600 text-white'
               }`}
             >
-              Save Machine
+              Save NFA
             </button>
           )}
         </div>

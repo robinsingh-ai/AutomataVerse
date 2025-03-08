@@ -381,6 +381,25 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
     setCurrentConfiguration(null);
   };
 
+  // Clear the entire canvas, resetting all nodes and the simulation state
+  const clearCanvas = (): void => {
+    // First reset the simulation
+    resetSimulation();
+    
+    // Then clear all nodes, nodeMap and other state
+    setNodes([]);
+    setNodeMap({});
+    setSelectedNode(null);
+    setFiniteNodes(new Set());
+    setInputString('');
+    
+    // Reset validation
+    setValidationResult(null);
+    
+    // Clear share URL
+    setShareUrl('');
+  };
+
   // Initialize tapes with input string for simulation
   const initializeTapes = (input: string): Tape[] => {
     const numTapes = tapeMode === '1-tape' ? 1 : tapeMode === '2-tape' ? 2 : 3;
@@ -799,21 +818,22 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         onRun={handleRun}
         onStep={onStepWiseClick}
         onInputChange={(val) => setInputString(val)}
+        onReset={resetSimulation}
+        onToggleGrid={() => setShowGrid(!showGrid)}
+        onLoadJson={toggleJsonInput}
+        onValidate={validateCurrentTM}
+        onSave={handleSave}
+        onClearCanvas={clearCanvas}
         inputString={inputString}
         validationResult={validationResult}
         selectedNode={selectedNode}
-        isRunning={isRunning}
+        isRunning={isRunning || isRunningStepWise}
         isRunningStepWise={isRunningStepWise}
         showGrid={showGrid}
-        onToggleGrid={() => setShowGrid(!showGrid)}
         stepIndex={stepIndex}
-        onReset={resetSimulation}
-        onLoadJson={toggleJsonInput}
-        onValidate={validateCurrentTM}
         tapeMode={tapeMode}
         onTapeModeChange={handleTapeModeChange}
         tapes={tapes}
-        onSave={handleSave}
         isLoggedIn={!!user}
       />
       
