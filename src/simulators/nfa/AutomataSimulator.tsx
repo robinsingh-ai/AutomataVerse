@@ -95,6 +95,15 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
   
   const stageRef = useRef<Konva.Stage>(null);
 
+  // Track all active configurations for non-deterministic exploration
+  const [activeConfigurations, setActiveConfigurations] = useState<{config: NFAState; path: NFAState[]}[]>([]);
+  const [visitedConfigs, setVisitedConfigs] = useState<Set<string>>(new Set());
+  
+  // Track the accepting path for visualization
+  const [acceptingPath, setAcceptingPath] = useState<NFAState[]>([]);
+  const [isShowingAcceptingPath, setIsShowingAcceptingPath] = useState<boolean>(false);
+  const [acceptingPathStep, setAcceptingPathStep] = useState<number>(0);
+
   // Set isClient to true when component mounts
   useEffect(() => {
     setIsClient(true);
@@ -103,6 +112,14 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
   // Check for NFA in URL params when component mounts
   useEffect(() => {
     if (isClient) {
+      // Check if epsilon transitions are enabled in URL params
+      const epsilonParam = searchParams.get('allowEpsilon');
+      if (epsilonParam === 'true') {
+        setAllowEpsilon(true);
+      } else if (epsilonParam === 'false') {
+        setAllowEpsilon(false);
+      }
+      
       // First check for initialNFA prop
       if (initialNFA) {
         loadNFAFromJSON(initialNFA);
@@ -353,6 +370,15 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
     setStepIndex(0);
     setHighlightedTransitions([]);
     setCurrentConfiguration(null);
+    
+    // Reset non-deterministic exploration state
+    setActiveConfigurations([]);
+    setVisitedConfigs(new Set());
+    
+    // Reset accepting path visualization
+    setAcceptingPath([]);
+    setIsShowingAcceptingPath(false);
+    setAcceptingPathStep(0);
   };
 
   // Clear the entire canvas, resetting all nodes and the simulation state
@@ -392,7 +418,7 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
     };
   };
 
-  // NFA simulation with fixed epsilon transition handling
+  // NFA simulation with improved non-determinism handling
   const handleRun = async (): Promise<void> => {
     if (isRunning || !nodes.length) return;
     
@@ -410,6 +436,9 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
     setHighlightedTransitions([]);
     setValidationResult(null);
     setStepIndex(0);
+    setAcceptingPath([]);
+    setIsShowingAcceptingPath(false);
+    setAcceptingPathStep(0);
     
     // Initialize NFA with input
     const initialConfig = initializeNFA(inputString);
@@ -417,43 +446,74 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
     setCurrNodes(initialConfig.stateIds);
     setHighlightedNodes(initialConfig.stateIds);
     
-    let currentConfig = initialConfig;
-    let simulationStep = 0;
-    const MAX_STEPS = 100; // Prevent infinite loops
+    // Queue for BFS, starting with the initial configuration
+    const queue: {config: NFAState; path: NFAState[]}[] = [
+      {config: initialConfig, path: [initialConfig]}
+    ];
     
-    // For visualizing each step
-    while (!currentConfig.halted && simulationStep < MAX_STEPS) {
-      await sleep(500); // Delay for animation
+    // Set to keep track of visited configurations
+    const visited = new Set<string>();
+    
+    // First phase: Find accepting path with BFS
+    let foundAcceptingPath = false;
+    let acceptingPathFound: NFAState[] = [];
+    
+    while (queue.length > 0 && !foundAcceptingPath) {
+      // Get the next configuration from the queue
+      const { config: currentConfig, path } = queue.shift()!;
       
-      // Get the current input symbol
-      const inputSymbol = currentConfig.inputPosition < currentConfig.inputString.length
-        ? currentConfig.inputString[currentConfig.inputPosition]
-        : '';
+      // Generate a string representation of the configuration to avoid cycles
+      const configStr = `${Array.from(currentConfig.stateIds).sort().join(',')},${currentConfig.inputPosition}`;
+      if (visited.has(configStr)) continue;
+      visited.add(configStr);
       
-      if (!inputSymbol) {
-        // End of input, check if in accepting state
+      // Check if we're at end of input and in an accepting state
+      if (currentConfig.inputPosition >= currentConfig.inputString.length) {
         const isAccepted = Array.from(currentConfig.stateIds).some(stateId => finiteNodes.has(stateId));
-        
-        setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
-        setIsRunning(false);
-        return;
+        if (isAccepted) {
+          // We found an accepting path!
+          foundAcceptingPath = true;
+          acceptingPathFound = path;
+          break;
+        }
+        continue; // No need to explore further from a non-accepting end state
       }
       
-      // Track states before taking transitions
-      const currentStates = new Set(currentConfig.stateIds);
+      // Get the current input symbol
+      const inputSymbol = currentConfig.inputString[currentConfig.inputPosition];
       
-      // First, check if we can move on the current input symbol
-      const nextStatesOnInput = new Set<string>();
+      // Find all possible next configurations from this state
+      const nextConfigs: NFAState[] = [];
+      
+      // Track transitions for visualization
       const inputTransitions: HighlightedTransition[] = [];
       
-      currentStates.forEach(stateId => {
+      // Step 1: Check regular transitions on the input symbol
+      currentConfig.stateIds.forEach(stateId => {
         const node = nodeMap[stateId];
         if (!node) return;
         
         // Find transitions on the current input symbol
         node.transitions.forEach(transition => {
           if (transition.label === inputSymbol) {
-            nextStatesOnInput.add(transition.targetid);
+            // Create a new configuration with the target state
+            const nextStateIds = new Set<string>([transition.targetid]);
+            
+            // Add epsilon closure if allowed
+            const nextStatesWithEpsilon = allowEpsilon
+              ? computeEpsilonClosure(nextStateIds, nodes, nodeMap)
+              : nextStateIds;
+            
+            const nextConfig: NFAState = {
+              stateIds: nextStatesWithEpsilon,
+              inputString: currentConfig.inputString,
+              inputPosition: currentConfig.inputPosition + 1,
+              halted: false,
+              accepted: false
+            };
+            
+            nextConfigs.push(nextConfig);
+            
             inputTransitions.push({
               d: transition,
               target: stateId
@@ -462,51 +522,13 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
         });
       });
       
-      // If we found transitions on the input symbol
-      if (nextStatesOnInput.size > 0) {
-        // Compute epsilon closure if needed
-        const nextStatesWithEpsilon = allowEpsilon
-          ? computeEpsilonClosure(nextStatesOnInput, nodes, nodeMap)
-          : nextStatesOnInput;
-        
-        // Create the next configuration
-        const nextConfig: NFAState = {
-          stateIds: nextStatesWithEpsilon,
-          inputString: currentConfig.inputString,
-          inputPosition: currentConfig.inputPosition + 1,
-          halted: false,
-          accepted: false
-        };
-        
-        // Highlight input transitions
-        setHighlightedTransitions(inputTransitions);
-        
-        // Update state
-        currentConfig = nextConfig;
-        setCurrentConfiguration(nextConfig);
-        setCurrNodes(nextConfig.stateIds);
-        setHighlightedNodes(nextConfig.stateIds);
-        setStepIndex(simulationStep + 1);
-        
-        // Check if we reached the end of input
-        if (nextConfig.inputPosition >= inputString.length) {
-          const isAccepted = Array.from(nextConfig.stateIds).some(stateId => finiteNodes.has(stateId));
-          setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
-          setIsRunning(false);
-          return;
-        }
-        
-        simulationStep++;
-        continue;
-      }
-      
-      // If no transitions on input and epsilon transitions are allowed
+      // Step 2: Also check epsilon transitions if allowed
       if (allowEpsilon) {
         const epsilonTransitions: HighlightedTransition[] = [];
         const epsilonStates = new Set<string>();
         
         // Find epsilon transitions from current states
-        currentStates.forEach(stateId => {
+        currentConfig.stateIds.forEach(stateId => {
           const node = nodeMap[stateId];
           if (!node) return;
           
@@ -534,30 +556,92 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
             accepted: false
           };
           
-          // Highlight epsilon transitions
-          setHighlightedTransitions(epsilonTransitions);
-          
-          // Update state
-          currentConfig = nextConfig;
-          setCurrentConfiguration(nextConfig);
-          setCurrNodes(nextConfig.stateIds);
-          setHighlightedNodes(nextConfig.stateIds);
-          setStepIndex(simulationStep + 1);
-          
-          simulationStep++;
-          continue;
+          nextConfigs.push(nextConfig);
         }
       }
       
-      // If no valid transitions, reject
-      setValidationResult("Input Rejected");
-      setIsRunning(false);
-      return;
+      // Add all next configurations to the queue with their paths
+      for (const nextConfig of nextConfigs) {
+        queue.push({
+          config: nextConfig,
+          path: [...path, nextConfig]
+        });
+      }
     }
     
-    // Check if we reached MAX_STEPS (potential infinite loop)
-    if (simulationStep >= MAX_STEPS) {
-      setValidationResult("Warning: Reached maximum step count. Possible infinite loop.");
+    // If we found an accepting path, visualize it
+    if (foundAcceptingPath) {
+      setAcceptingPath(acceptingPathFound);
+      setValidationResult("Input Accepted - Visualizing accepting path");
+      
+      // Second phase: Visualize the accepting path step by step
+      setIsShowingAcceptingPath(true);
+      
+      for (let i = 0; i < acceptingPathFound.length; i++) {
+        // Delay for animation
+        await sleep(500);
+        
+        const currentConfig = acceptingPathFound[i];
+        
+        // Update UI with current configuration
+        setCurrentConfiguration(currentConfig);
+        setCurrNodes(currentConfig.stateIds);
+        setHighlightedNodes(currentConfig.stateIds);
+        setAcceptingPathStep(i);
+        setStepIndex(i);
+        
+        // Visualize the transition if not the first state
+        if (i > 0) {
+          const prevConfig = acceptingPathFound[i-1];
+          
+          // Find all transitions between the previous state and current state
+          const transitions: HighlightedTransition[] = [];
+          
+          // Check for regular symbol transitions
+          if (prevConfig.inputPosition < currentConfig.inputPosition) {
+            // There was an input symbol consumed
+            const inputSymbol = prevConfig.inputString[prevConfig.inputPosition];
+            
+            prevConfig.stateIds.forEach(prevStateId => {
+              const prevNode = nodeMap[prevStateId];
+              if (!prevNode) return;
+              
+              prevNode.transitions.forEach(transition => {
+                if (transition.label === inputSymbol && 
+                    currentConfig.stateIds.has(transition.targetid)) {
+                  transitions.push({
+                    d: transition,
+                    target: prevStateId
+                  });
+                }
+              });
+            });
+          } else {
+            // Epsilon transition
+            prevConfig.stateIds.forEach(prevStateId => {
+              const prevNode = nodeMap[prevStateId];
+              if (!prevNode) return;
+              
+              prevNode.transitions.forEach(transition => {
+                if (transition.label === 'ε' &&
+                    currentConfig.stateIds.has(transition.targetid)) {
+                  transitions.push({
+                    d: transition,
+                    target: prevStateId
+                  });
+                }
+              });
+            });
+          }
+          
+          setHighlightedTransitions(transitions);
+        }
+      }
+      
+      setValidationResult("Input Accepted");
+    } else {
+      // If we didn't find an accepting path
+      setValidationResult("Input Rejected - No accepting path found");
     }
     
     setIsRunning(false);
@@ -566,46 +650,175 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
   const handleStepWise = async (): Promise<void> => {
     if (selectedNode) setSelectedNode(null);
     
-    if (!currentConfiguration) {
-      // First step - initialize
-      const initialConfig = initializeNFA(inputString);
+    // If we're already showing an accepting path, continue through it
+    if (isShowingAcceptingPath) {
+      const nextStep = acceptingPathStep + 1;
       
-      setCurrentConfiguration(initialConfig);
-      setCurrNodes(initialConfig.stateIds);
-      setHighlightedNodes(initialConfig.stateIds);
+      if (nextStep < acceptingPath.length) {
+        const currentConfig = acceptingPath[nextStep];
+        const prevConfig = acceptingPath[nextStep - 1];
+        
+        // Update UI with current configuration
+        setCurrentConfiguration(currentConfig);
+        setCurrNodes(currentConfig.stateIds);
+        setHighlightedNodes(currentConfig.stateIds);
+        setAcceptingPathStep(nextStep);
+        setStepIndex(nextStep);
+        
+        // Visualize the transition
+        const transitions: HighlightedTransition[] = [];
+        
+        // Check for regular symbol transitions
+        if (prevConfig.inputPosition < currentConfig.inputPosition) {
+          // There was an input symbol consumed
+          const inputSymbol = prevConfig.inputString[prevConfig.inputPosition];
+          
+          prevConfig.stateIds.forEach(prevStateId => {
+            const prevNode = nodeMap[prevStateId];
+            if (!prevNode) return;
+            
+            prevNode.transitions.forEach(transition => {
+              if (transition.label === inputSymbol && 
+                  currentConfig.stateIds.has(transition.targetid)) {
+                transitions.push({
+                  d: transition,
+                  target: prevStateId
+                });
+              }
+            });
+          });
+        } else {
+          // Epsilon transition
+          prevConfig.stateIds.forEach(prevStateId => {
+            const prevNode = nodeMap[prevStateId];
+            if (!prevNode) return;
+            
+            prevNode.transitions.forEach(transition => {
+              if (transition.label === 'ε' &&
+                  currentConfig.stateIds.has(transition.targetid)) {
+                transitions.push({
+                  d: transition,
+                  target: prevStateId
+                });
+              }
+            });
+          });
+        }
+        
+        setHighlightedTransitions(transitions);
+        
+        // If we reached the end of the accepting path
+        if (nextStep === acceptingPath.length - 1) {
+          setValidationResult("Input Accepted");
+          setIsRunningStepWise(false);
+        }
+      } else {
+        // We've finished visualizing the accepting path
+        setIsShowingAcceptingPath(false);
+        setIsRunningStepWise(false);
+      }
+      
       return;
     }
     
-    // Get the current input symbol
-    const inputSymbol = currentConfiguration.inputPosition < currentConfiguration.inputString.length
-      ? currentConfiguration.inputString[currentConfiguration.inputPosition]
-      : '';
-    
-    if (!inputSymbol) {
-      // End of input, check if in accepting state
-      const isAccepted = Array.from(currentConfiguration.stateIds).some(stateId => finiteNodes.has(stateId));
+    // Step 1: Initialize if first step
+    if (!isRunningStepWise) {
+      setIsRunningStepWise(true);
+      const initialConfig = initializeNFA(inputString);
+      setCurrentConfiguration(initialConfig);
+      setCurrNodes(initialConfig.stateIds);
+      setHighlightedNodes(initialConfig.stateIds);
+      setStepIndex(0);
       
-      setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
+      // Initialize the active configurations queue with the initial configuration
+      setActiveConfigurations([{ config: initialConfig, path: [initialConfig] }]);
+      setVisitedConfigs(new Set());
+      return;
+    }
+    
+    // If we have no active configurations, we're done
+    if (activeConfigurations.length === 0) {
+      setValidationResult("Input Rejected - No more paths to explore");
       setIsRunningStepWise(false);
       return;
     }
     
-    // Track states before taking transitions
-    const currentStates = new Set(currentConfiguration.stateIds);
+    // Get the next configuration from the queue
+    const { config: currentConfig, path } = activeConfigurations[0];
+    const newActiveConfigurations = activeConfigurations.slice(1);
     
-    // First, check if we can move on the current input symbol
-    const nextStatesOnInput = new Set<string>();
-    const inputTransitions: HighlightedTransition[] = [];
+    // Update the UI with the current configuration
+    setCurrentConfiguration(currentConfig);
+    setCurrNodes(currentConfig.stateIds);
+    setHighlightedNodes(currentConfig.stateIds);
+    setStepIndex(prevStepIndex => prevStepIndex + 1);
     
-    currentStates.forEach(stateId => {
+    // Check if we're at end of input and in an accepting state
+    if (currentConfig.inputPosition >= currentConfig.inputString.length) {
+      const isAccepted = Array.from(currentConfig.stateIds).some(stateId => finiteNodes.has(stateId));
+      if (isAccepted) {
+        // Found an accepting path! Save it for visualization
+        setAcceptingPath(path);
+        setIsShowingAcceptingPath(true);
+        setAcceptingPathStep(0);
+        setValidationResult("Input Accepted - Press Step to see the accepting path");
+        return;
+      }
+      
+      // Not accepting, continue with other paths
+      setActiveConfigurations(newActiveConfigurations);
+      return;
+    }
+    
+    // Generate a string representation of the configuration to avoid cycles
+    const configStr = `${Array.from(currentConfig.stateIds).sort().join(',')},${currentConfig.inputPosition}`;
+    const newVisitedConfigs = new Set(visitedConfigs);
+    
+    // Skip if we've already processed this configuration
+    if (visitedConfigs.has(configStr)) {
+      setActiveConfigurations(newActiveConfigurations);
+      return;
+    }
+    
+    newVisitedConfigs.add(configStr);
+    setVisitedConfigs(newVisitedConfigs);
+    
+    // Get the current input symbol
+    const inputSymbol = currentConfig.inputString[currentConfig.inputPosition];
+    
+    // Find all possible next configurations from this state
+    const nextConfigs: NFAState[] = [];
+    
+    // Track transitions for visualization
+    const currentTransitions: HighlightedTransition[] = [];
+    
+    // Step 1: Check regular transitions on the input symbol
+    currentConfig.stateIds.forEach(stateId => {
       const node = nodeMap[stateId];
       if (!node) return;
       
       // Find transitions on the current input symbol
       node.transitions.forEach(transition => {
         if (transition.label === inputSymbol) {
-          nextStatesOnInput.add(transition.targetid);
-          inputTransitions.push({
+          // Create a new configuration with the target state
+          const nextStateIds = new Set<string>([transition.targetid]);
+          
+          // Add epsilon closure if allowed
+          const nextStatesWithEpsilon = allowEpsilon
+            ? computeEpsilonClosure(nextStateIds, nodes, nodeMap)
+            : nextStateIds;
+          
+          const nextConfig: NFAState = {
+            stateIds: nextStatesWithEpsilon,
+            inputString: currentConfig.inputString,
+            inputPosition: currentConfig.inputPosition + 1,
+            halted: false,
+            accepted: false
+          };
+          
+          nextConfigs.push(nextConfig);
+          
+          currentTransitions.push({
             d: transition,
             target: stateId
           });
@@ -613,48 +826,13 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
       });
     });
     
-    // If we found transitions on the input symbol
-    if (nextStatesOnInput.size > 0) {
-      // Compute epsilon closure if needed
-      const nextStatesWithEpsilon = allowEpsilon
-        ? computeEpsilonClosure(nextStatesOnInput, nodes, nodeMap)
-        : nextStatesOnInput;
-      
-      // Create the next configuration
-      const nextConfig: NFAState = {
-        stateIds: nextStatesWithEpsilon,
-        inputString: currentConfiguration.inputString,
-        inputPosition: currentConfiguration.inputPosition + 1,
-        halted: false,
-        accepted: false
-      };
-      
-      // Highlight input transitions
-      setHighlightedTransitions(inputTransitions);
-      
-      // Update state
-      setCurrentConfiguration(nextConfig);
-      setCurrNodes(nextConfig.stateIds);
-      setHighlightedNodes(nextConfig.stateIds);
-      setStepIndex(prevStepIndex => prevStepIndex + 1);
-      
-      // Check if we reached the end of input
-      if (nextConfig.inputPosition >= inputString.length) {
-        const isAccepted = Array.from(nextConfig.stateIds).some(stateId => finiteNodes.has(stateId));
-        setValidationResult(isAccepted ? "Input Accepted" : "Input Rejected");
-        setIsRunningStepWise(false);
-      }
-      
-      return;
-    }
-    
-    // If no transitions on input and epsilon transitions are allowed
+    // Step 2: Also check epsilon transitions if allowed
     if (allowEpsilon) {
       const epsilonTransitions: HighlightedTransition[] = [];
       const epsilonStates = new Set<string>();
       
       // Find epsilon transitions from current states
-      currentStates.forEach(stateId => {
+      currentConfig.stateIds.forEach(stateId => {
         const node = nodeMap[stateId];
         if (!node) return;
         
@@ -676,28 +854,38 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
         // Create the next configuration
         const nextConfig: NFAState = {
           stateIds: epsilonClosure,
-          inputString: currentConfiguration.inputString,
-          inputPosition: currentConfiguration.inputPosition, // Don't advance for epsilon
+          inputString: currentConfig.inputString,
+          inputPosition: currentConfig.inputPosition, // Don't advance for epsilon
           halted: false,
           accepted: false
         };
         
-        // Highlight epsilon transitions
-        setHighlightedTransitions(epsilonTransitions);
+        nextConfigs.push(nextConfig);
         
-        // Update state
-        setCurrentConfiguration(nextConfig);
-        setCurrNodes(nextConfig.stateIds);
-        setHighlightedNodes(nextConfig.stateIds);
-        setStepIndex(prevStepIndex => prevStepIndex + 1);
-        
-        return;
+        // Add epsilon transitions to be highlighted
+        currentTransitions.push(...epsilonTransitions);
       }
     }
     
-    // If no valid transitions, reject
-    setValidationResult("Input Rejected");
-    setIsRunningStepWise(false);
+    // Visualize the current transition
+    setHighlightedTransitions(currentTransitions);
+    
+    // Add all next configurations to the queue with their paths
+    for (const nextConfig of nextConfigs) {
+      newActiveConfigurations.push({
+        config: nextConfig,
+        path: [...path, nextConfig]
+      });
+    }
+    
+    // Update the active configurations
+    setActiveConfigurations(newActiveConfigurations);
+    
+    // If we have no more configurations to explore, we're done
+    if (newActiveConfigurations.length === 0) {
+      setValidationResult("Input Rejected - No more paths to explore");
+      setIsRunningStepWise(false);
+    }
   };
 
   const onStepWiseClick = (): void => {
