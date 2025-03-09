@@ -95,8 +95,28 @@ export const DFA_PROBLEMS: Record<string, DFAProblem> = {
     title: "Alternating Parity of a's and b's",
     description:
       "Construct a DFA that accepts all strings over the alphabet {a,b} where the parity (odd/even) of a's and b's must be different. That is, either (a's are even AND b's are odd) OR (a's are odd AND b's are even).",
-    accept: ["a", "b", "aab", "abb","bab", "aaabb", "aabaabb", "aababab", "babbaab", "aaaaaab"],
+    accept: [
+      "a",
+      "b",
+      "aab",
+      "abb",
+      "bab",
+      "aaabb",
+      "aabaabb",
+      "aababab",
+      "babbaab",
+      "aaaaaab",
+    ],
     reject: ["", "aa", "bb", "aabb", "abba", "aaaabb", "aabbbb", "ababab"],
+    difficulty: "Hard",
+  },
+  "dfa-mod3-balance": {
+    id: "dfa-mod3-balance",
+    title: "Mod-3 Balanced Strings",
+    description:
+      "Construct a DFA that accepts all strings over the alphabet {a,b} where the number of a's modulo 3 equals the number of b's modulo 3.",
+    accept: ["", "ab", "ba", "aabb", "bbaa", "aaabbb", "ababab", "aabbaabb"],
+    reject: ["a", "b", "aab", "abb", "bba", "aaabb", "abbba", "aaaaab"],
     difficulty: "Hard",
   },
 };
