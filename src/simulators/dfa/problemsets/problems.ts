@@ -73,5 +73,14 @@ export const DFA_PROBLEMS: Record<string, DFAProblem> = {
     reject: ['aa', 'bb', 'aab', 'abb', 'baa', 'bba', 'ababb'],
     difficulty: 'Medium'
   },
+  'dfa-no-substring-abba': {
+    id: 'dfa-no-substring-abba',
+    title: 'Strings without substring "abba"',
+    description: 'Construct a DFA that accepts all strings over the alphabet {a,b} that do not contain the substring "abba".',
+    accept: ['', 'a', 'b', 'ab', 'ba', 'abb', 'bba', 'abab', 'babb', 'aabbb'],
+    reject: ['abba', 'abbab', 'babba', 'aabbaa', 'ababba'],
+    difficulty: 'Hard'
+  },
+  
   
 }; 
