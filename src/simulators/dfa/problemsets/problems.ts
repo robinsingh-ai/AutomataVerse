@@ -65,4 +65,13 @@ export const DFA_PROBLEMS: Record<string, DFAProblem> = {
     reject: ['aa', 'aab', 'baa', 'baab', 'abaa', 'aabbaa'],
     difficulty: 'Medium'
   },
+  'dfa-alternating-ab': {
+    id: 'dfa-alternating-ab',
+    title: 'Alternating a\'s and b\'s',
+    description: 'Construct a DFA that accepts all strings over the alphabet {a,b} where a\'s and b\'s alternate (the empty string is accepted).',
+    accept: ['', 'a', 'b', 'ab', 'ba', 'aba', 'bab', 'ababa', 'babab'],
+    reject: ['aa', 'bb', 'aab', 'abb', 'baa', 'bba', 'ababb'],
+    difficulty: 'Medium'
+  },
+  
 }; 
