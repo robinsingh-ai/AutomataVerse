@@ -57,4 +57,12 @@ export const DFA_PROBLEMS: Record<string, DFAProblem> = {
     reject: ['a', 'b', 'ab', 'ba', 'abb', 'bab', 'abab', 'abaa'],
     difficulty: 'Easy'
   },
+  'dfa-no-consecutive-as': {
+    id: 'dfa-no-consecutive-as',
+    title: 'Strings with no consecutive a\'s',
+    description: 'Construct a DFA that accepts all strings over the alphabet {a,b} that do not contain two consecutive a\'s.',
+    accept: ['', 'a', 'b', 'ab', 'ba', 'aba', 'bab', 'babab', 'bbbbbb'],
+    reject: ['aa', 'aab', 'baa', 'baab', 'abaa', 'aabbaa'],
+    difficulty: 'Medium'
+  },
 }; 
