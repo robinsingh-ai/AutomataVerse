@@ -119,4 +119,13 @@ export const DFA_PROBLEMS: Record<string, DFAProblem> = {
     reject: ["a", "b", "aab", "abb", "bba", "aaabb", "abbba", "aaaaab"],
     difficulty: "Hard",
   },
+  "dfa-even-bs": {
+    id: "dfa-even-bs",
+    title: "Strings with even number of b's",
+    description:
+      "Construct a DFA that accepts all strings over the alphabet {a,b} that contain an even number of b's (including zero b's).",
+    accept: ["", "a", "aa", "bb", "aaa", "abb", "bab", "bba", "aabb"],
+    reject: ["b", "ab", "ba", "aab", "aba", "baa", "bbb"],
+    difficulty: "Easy",
+  },
 };
