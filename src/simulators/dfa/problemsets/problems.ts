@@ -48,5 +48,13 @@ export const DFA_PROBLEMS: Record<string, DFAProblem> = {
     accept: ['0', '11', '110', '1001', '1100'],
     reject: ['1', '10', '100', '101', '111', '1000'],
     difficulty: 'Hard'
-  }
+  },
+  'dfa-ends-with-aba': {
+    id: 'dfa-ends-with-aba',
+    title: 'Strings ending with "aba"',
+    description: 'Construct a DFA that recognizes the language of all strings over the alphabet {a,b} that end with "aba".',
+    accept: ['aba', 'aaba', 'baba', 'ababa', 'bbaba', 'bababa'],
+    reject: ['a', 'b', 'ab', 'ba', 'abb', 'bab', 'abab', 'abaa'],
+    difficulty: 'Easy'
+  },
 }; 
