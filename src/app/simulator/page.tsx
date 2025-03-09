@@ -151,7 +151,7 @@ export default function SimulatorHomePage() {
           {/* Announcement Banner */}
           {showBanner && (
             <div className={`max-w-3xl mx-auto p-4 rounded-lg ${isDark ? 'bg-green-900/30 text-green-200' : 'bg-green-100 text-green-800'} relative`}>
-              <span className="font-medium">Update: Added Moore and Mealy Machine Simulators.</span>
+              <span className="font-medium">Now PDA and NFA correctly handles epsilon transitions and Non-determinism.</span>
               <button 
                 onClick={() => setShowBanner(false)}
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 hover:opacity-70 transition-opacity"
