@@ -164,6 +164,11 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     progress: number, 
     color: string = "red"
   ) => {
+    // Determine if this is an epsilon transition
+    const isEpsilon = label === 'ε';
+    const lineWidth = isEpsilon ? 3 : 2; // Thicker line for epsilon transitions
+    const dashPattern = isEpsilon ? [7, 3] : [5, 3]; // Different dash pattern
+    
     return (
       <Group perfectDrawEnabled={false}>
         {/* Base line - dotted */}
@@ -180,9 +185,9 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
               );
               
               // Set up dotted line
-              context.setLineDash([5, 3]);
+              context.setLineDash(dashPattern);
               context.strokeStyle = color;
-              context.lineWidth = 2;
+              context.lineWidth = lineWidth;
               context.stroke();
               context.setLineDash([]);
               
@@ -203,11 +208,10 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                 points.endX - arrowSize * Math.cos(angleToCenter - Math.PI / 6),
                 points.endY - arrowSize * Math.sin(angleToCenter - Math.PI / 6)
               );
-              context.closePath();
+              context.lineTo(points.endX, points.endY);
               context.fillStyle = color;
               context.fill();
             }}
-            perfectDrawEnabled={false}
           />
         ) : (
           <Shape
@@ -217,18 +221,15 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
               context.lineTo(points.endX, points.endY);
               
               // Set up dotted line
-              context.setLineDash([5, 3]);
+              context.setLineDash(dashPattern);
               context.strokeStyle = color;
-              context.lineWidth = 2;
+              context.lineWidth = lineWidth;
               context.stroke();
               context.setLineDash([]);
               
               // Draw arrowhead
               const arrowSize = 15;
-              const angle = Math.atan2(
-                points.endY - points.startY, 
-                points.endX - points.startX
-              );
+              const angle = Math.atan2(points.endY - points.startY, points.endX - points.startX);
               
               context.beginPath();
               context.moveTo(points.endX, points.endY);
@@ -240,11 +241,10 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                 points.endX - arrowSize * Math.cos(angle - Math.PI / 6),
                 points.endY - arrowSize * Math.sin(angle - Math.PI / 6)
               );
-              context.closePath();
+              context.lineTo(points.endX, points.endY);
               context.fillStyle = color;
               context.fill();
             }}
-            perfectDrawEnabled={false}
           />
         )}
         
@@ -305,6 +305,18 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     );
   };
 
+  // Get the color for a highlighted transition (different color for epsilon)
+  const getHighlightedTransitionColor = (sourceId: string, targetId: string): string => {
+    const transition = highlightedTransitions.find(
+      ht => ht.target === sourceId && ht.d?.targetid === targetId
+    );
+    
+    if (!transition) return "red";
+    
+    // Special highlighting for epsilon transitions
+    return transition.d?.label === 'ε' ? "#00BFFF" : "red";
+  };
+
   // Split the labels into multiple lines if too many
   const formatLabelsForDisplay = (labels: string[]): string[] => {
     if (labels.length <= 3) return labels;
@@ -347,21 +359,60 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     const totalHeight = showCounter ? lineHeight : labels.length * lineHeight;
     const maxLabelWidth = showCounter ? 60 : Math.max(...labels.map(label => label.length * 8)) + 10;
     
+    // Check if any self-transition is an epsilon transition
+    const hasEpsilonTransition = selfTransitions.some(t => t.label === 'ε');
+    
+    // Determine if this self-loop should be highlighted
+    const isHighlightedSelfLoop = selfTransitions.some(t => 
+      highlightedTransitions.some(ht => ht.target === nodeId && ht.d?.targetid === nodeId && ht.d?.label === t.label)
+    );
+    
+    // Determine if a highlighted transition is an epsilon transition
+    const isHighlightedEpsilon = highlightedTransitions.some(ht => 
+      ht.target === nodeId && ht.d?.targetid === nodeId && ht.d?.label === 'ε'
+    );
+    
+    // Determine stroke color and style
+    let strokeColor = "#aaa";
+    let lineWidth = 2;
+    let dashPattern: number[] = [];
+    
+    if (isHighlightedSelfLoop) {
+      if (isHighlightedEpsilon) {
+        // Highlight epsilon self-transitions with special color
+        strokeColor = "#00BFFF"; // Bright blue for epsilon
+        lineWidth = 3;
+        dashPattern = [7, 3];
+      } else {
+        // Regular highlighted transition
+        strokeColor = "red";
+        lineWidth = 2;
+        dashPattern = [5, 3];
+      }
+    } else if (isHighlighted) {
+      // Node is highlighted but not the transition
+      strokeColor = "#888";
+    } else {
+      // Default color
+      strokeColor = "black";
+    }
+
     return (
       <Group key={`self-loop-${nodeId}-${index}`} perfectDrawEnabled={false}
         onMouseEnter={() => setHoveredTransition({ sourceId: nodeId, targetId: nodeId })}
         onMouseLeave={() => setHoveredTransition(null)}
       >
         {/* Draw animated or regular loop based on highlight state */}
-        {isHighlighted ? (
+        {isHighlighted || isHighlightedSelfLoop ? (
           <Shape
             sceneFunc={(context: Konva.Context) => {
               context.beginPath();
               context.arc(loopX, loopY, loopRadius, startAngle, endAngle, false);
+              
               // Set up dotted line for animation
-              context.setLineDash([5, 3]);
-              context.strokeStyle = "red";
-              context.lineWidth = 2;
+              context.setLineDash(dashPattern);
+              context.strokeStyle = strokeColor;
+              context.lineWidth = lineWidth;
               context.stroke();
               context.setLineDash([]);
               context.closePath();
@@ -377,8 +428,8 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
               context.closePath();
               context.strokeShape(shape);
             }}
-            stroke="black"
-            strokeWidth={2}
+            stroke={strokeColor}
+            strokeWidth={lineWidth}
             perfectDrawEnabled={false}
           />
         )}
@@ -391,22 +442,22 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
             loopX + loopRadius * Math.cos(arrowAngle + Math.PI / 6),
             loopY + loopRadius * Math.sin(arrowAngle + Math.PI / 6),
           ]}
-          stroke={isHighlighted ? "red" : "black"}
-          fill={isHighlighted ? "red" : "black"}
+          stroke={strokeColor}
+          fill={strokeColor}
           pointerLength={10}
           pointerWidth={10}
           perfectDrawEnabled={false}
         />
         
         {/* Animated particle for highlighted loops */}
-        {isHighlighted && (
+        {(isHighlighted || isHighlightedSelfLoop) && (
           <Circle
             x={loopX + loopRadius * Math.cos(startAngle + (endAngle - startAngle) * animationProgress)}
             y={loopY + loopRadius * Math.sin(startAngle + (endAngle - startAngle) * animationProgress)}
             radius={5}
-            fill="red"
+            fill={strokeColor}
             shadowBlur={10}
-            shadowColor="red"
+            shadowColor={strokeColor}
             shadowOpacity={0.6}
             perfectDrawEnabled={false}
           />
@@ -463,7 +514,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                   y={loopY - loopRadius - totalHeight + i * lineHeight - 5}
                   text={label}
                   fontSize={14}
-                  fill="black"
+                  fill={label === 'ε' && isHighlightedEpsilon ? "#00BFFF" : "black"}
                   align="center"
                   verticalAlign="middle"
                   perfectDrawEnabled={false}
@@ -587,7 +638,7 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
                     isReverse, 
                     transition.label, 
                     animationProgress,
-                    "red"
+                    getHighlightedTransitionColor(sourceId, targetId)
                   )
                 ) : (
                   isReverse ? (

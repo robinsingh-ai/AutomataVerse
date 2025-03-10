@@ -214,7 +214,7 @@ export const getNextConfiguration = (
   // Get the current input symbol
   const inputSymbol = currentConfig.inputString[currentConfig.inputPosition];
   
-  // First try to move on the current input symbol
+  // Find all transitions on the current input symbol
   const nextStates = new Set<string>();
   
   // For each current state, find transitions on the current input
@@ -245,36 +245,47 @@ export const getNextConfiguration = (
     };
   }
   
-  // If we didn't find any regular transitions and epsilon transitions are allowed,
-  // try taking epsilon transitions
+  // If we're in an epsilon-NFA and have no regular transitions, 
+  // check for epsilon transitions (only if allowed)
   if (allowEpsilon) {
-    const epsilonStates = new Set<string>();
-    let foundEpsilonTransition = false;
+    // Find direct epsilon transitions from current states
+    const epsilonTargets = new Set<string>();
+    let hasEpsilonTransitions = false;
     
-    // For each current state, find epsilon transitions
     currentConfig.stateIds.forEach(stateId => {
-      const currentNode = nodeMap[stateId];
-      if (!currentNode) return;
+      const node = nodeMap[stateId];
+      if (!node) return;
       
-      for (const transition of currentNode.transitions) {
+      node.transitions.forEach(transition => {
         if (transition.label === 'ε') {
-          epsilonStates.add(transition.targetid);
-          foundEpsilonTransition = true;
+          epsilonTargets.add(transition.targetid);
+          hasEpsilonTransitions = true;
         }
-      }
+      });
     });
     
-    if (foundEpsilonTransition) {
-      // Compute the complete epsilon closure
-      const epsilonClosure = computeEpsilonClosure(epsilonStates, nodes, nodeMap);
+    if (hasEpsilonTransitions) {
+      // Compute full epsilon closure
+      const epsilonClosure = computeEpsilonClosure(epsilonTargets, nodes, nodeMap);
       
-      return {
-        stateIds: epsilonClosure,
-        inputString: currentConfig.inputString,
-        inputPosition: currentConfig.inputPosition, // Don't advance input position for epsilon
-        halted: false,
-        accepted: false
-      };
+      // Only create a new step if the epsilon closure adds new states
+      // that weren't already in the current states
+      let hasNewStates = false;
+      epsilonClosure.forEach(state => {
+        if (!currentConfig.stateIds.has(state)) {
+          hasNewStates = true;
+        }
+      });
+      
+      if (hasNewStates) {
+        return {
+          stateIds: epsilonClosure,
+          inputString: currentConfig.inputString,
+          inputPosition: currentConfig.inputPosition, // Don't advance input position
+          halted: false,
+          accepted: false
+        };
+      }
     }
   }
   
@@ -295,75 +306,52 @@ export const simulateNFA = (
   finalStates: Set<string>,
   inputString: string,
   allowEpsilon: boolean
-): {accepted: boolean, finalStates: Set<string>} => {
-  // Start with initial state q0 and compute its epsilon closure if needed
+): { accepted: boolean, finalStates: Set<string> } => {
+  // Start with initial state q0 and compute its ε-closure (if allowed)
   let currentStates = new Set<string>(['q0']);
-  
   if (allowEpsilon) {
     currentStates = computeEpsilonClosure(currentStates, nodes, nodeMap);
   }
-  
-  // Process each input symbol
+
   for (let i = 0; i < inputString.length; i++) {
     const inputSymbol = inputString[i];
     const nextStates = new Set<string>();
-    
-    // Try to move on the current input symbol first
+
+    // Process transitions for the current input symbol
     currentStates.forEach(stateId => {
       const node = nodeMap[stateId];
       if (!node) return;
-      
+
       node.transitions.forEach(transition => {
         if (transition.label === inputSymbol) {
           nextStates.add(transition.targetid);
         }
       });
     });
-    
-    // If there are no transitions on the current input symbol, try epsilon transitions
-    if (nextStates.size === 0 && allowEpsilon) {
-      currentStates.forEach(stateId => {
-        const node = nodeMap[stateId];
-        if (!node) return;
-        
-        node.transitions.forEach(transition => {
-          if (transition.label === 'ε') {
-            nextStates.add(transition.targetid);
-          }
-        });
-      });
-      
-      // If still no transitions, reject
-      if (nextStates.size === 0) {
-        return { accepted: false, finalStates: new Set() };
-      }
-      
-      // Don't advance the input position for epsilon transitions
-      i--;
-    } else if (nextStates.size === 0) {
-      // If no transitions and no epsilon transitions are available, reject
+
+    // Apply ε-closure to next states (if allowed)
+    if (allowEpsilon) {
+      currentStates = computeEpsilonClosure(nextStates, nodes, nodeMap);
+    } else {
+      currentStates = nextStates;
+    }
+
+    // If no states remain, reject immediately
+    if (currentStates.size === 0) {
       return { accepted: false, finalStates: new Set() };
     }
-    
-    // Apply epsilon closure to next states if needed
-    currentStates = allowEpsilon
-      ? computeEpsilonClosure(nextStates, nodes, nodeMap)
-      : nextStates;
   }
-  
-  // Check if any current state is an accepting state
+
+  // After processing all input, check for acceptance
   const reachedAcceptingStates = new Set<string>();
   let accepted = false;
-  
+
   currentStates.forEach(stateId => {
     if (finalStates.has(stateId)) {
       accepted = true;
       reachedAcceptingStates.add(stateId);
     }
   });
-  
-  return {
-    accepted,
-    finalStates: reachedAcceptingStates
-  };
+
+  return { accepted, finalStates: reachedAcceptingStates };
 };
