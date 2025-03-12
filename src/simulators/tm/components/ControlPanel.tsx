@@ -122,46 +122,44 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </button>
         </div>
         
-        {/* Tape Mode Selection - hide in problem mode */}
-        {!problemMode && (
-          <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Tape Configuration
-            </label>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => onTapeModeChange('1-tape')}
-                className={`flex-1 py-1 px-2 text-sm rounded ${
-                  tapeMode === '1-tape'
-                    ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                    : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-                }`}
-              >
-                1-Tape
-              </button>
-              <button
-                onClick={() => onTapeModeChange('2-tape')}
-                className={`flex-1 py-1 px-2 text-sm rounded ${
-                  tapeMode === '2-tape'
-                    ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                    : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-                }`}
-              >
-                2-Tape
-              </button>
-              <button
-                onClick={() => onTapeModeChange('3-tape')}
-                className={`flex-1 py-1 px-2 text-sm rounded ${
-                  tapeMode === '3-tape'
-                    ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                    : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-                }`}
-              >
-                3-Tape
-              </button>
-            </div>
+        {/* Tape Mode Selection - always visible */}
+        <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+            Tape Configuration
+          </label>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onTapeModeChange('1-tape')}
+              className={`flex-1 py-1 px-2 text-sm rounded ${
+                tapeMode === '1-tape'
+                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              1-Tape
+            </button>
+            <button
+              onClick={() => onTapeModeChange('2-tape')}
+              className={`flex-1 py-1 px-2 text-sm rounded ${
+                tapeMode === '2-tape'
+                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              2-Tape
+            </button>
+            <button
+              onClick={() => onTapeModeChange('3-tape')}
+              className={`flex-1 py-1 px-2 text-sm rounded ${
+                tapeMode === '3-tape'
+                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              3-Tape
+            </button>
           </div>
-        )}
+        </div>
         
         {/* Only show input string section if not in problem mode */}
         {!problemMode && (
