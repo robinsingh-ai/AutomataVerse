@@ -16,7 +16,8 @@ import {
   deserializePDA,
   encodePDAForURL, 
   validatePDA, 
-  getNextConfigurations
+  getNextConfigurations,
+  batchTestPDA
 } from './utils/pdaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
@@ -24,6 +25,7 @@ import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import SaveMachineToast from '../../app/components/SaveMachineToast';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import ProblemPanel from './components/ProblemPanel';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -36,9 +38,10 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
 
 interface PushdownAutomataSimulatorProps {
   initialPDA?: string; // Optional JSON string to initialize the PDA
+  problemId?: string; // Optional problem ID for problem panel
 }
 
-const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPDA }) => {
+const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPDA, problemId }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   
@@ -877,6 +880,12 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     return true;
   };
 
+  // Add a function to handle batch testing for problems
+  const handleTestSolution = (acceptStrings: string[], rejectStrings: string[]) => {
+    // Use the current stack content for testing
+    return batchTestPDA(nodes, nodeMap, finiteNodes, acceptStrings, rejectStrings, stack.content);
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -899,9 +908,9 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         onInputChange={(val) => setInputString(val)}
         onReset={resetSimulation}
         onToggleGrid={() => setShowGrid(!showGrid)}
-        onLoadJson={toggleJsonInput}
+        onLoadJson={problemId ? undefined : toggleJsonInput}
         onValidate={validateCurrentPDA}
-        onSave={handleSave}
+        onSave={problemId ? undefined : handleSave}
         onClearCanvas={clearCanvas}
         inputString={inputString}
         validationResult={validationResult}
@@ -912,6 +921,7 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         stepIndex={stepIndex}
         stack={stack}
         isLoggedIn={!!user}
+        problemMode={!!problemId}
       />
       
       <PDAInfoPanel 
@@ -929,10 +939,12 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         stack={stack} 
       />
       
-      <TestInputPanel 
-        onTestInput={handleTestInput} 
-        onSharePDA={sharePDA}
-      />
+      {!problemId && (
+        <TestInputPanel 
+          onTestInput={handleTestInput} 
+          onSharePDA={sharePDA}
+        />
+      )}
       
       <div 
         style={{ 
@@ -1019,6 +1031,14 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         onClose={() => setShowSaveToast(false)}
         onSave={handleSaveMachine}
       />
+      
+      {/* Add the problem panel if a problem ID is provided */}
+      {problemId && (
+        <ProblemPanel
+          problemId={problemId}
+          onTestSolution={handleTestSolution}
+        />
+      )}
       
     </div>
   );

@@ -355,3 +355,62 @@ export const simulateNFA = (
 
   return { accepted, finalStates: reachedAcceptingStates };
 };
+
+/**
+ * Batch tests an NFA against multiple accept and reject strings
+ * @param nodes The NFA nodes
+ * @param nodeMap Node lookup map
+ * @param finalStates Set of final state IDs
+ * @param allowEpsilon Whether epsilon transitions are allowed
+ * @param acceptStrings Array of strings that should be accepted
+ * @param rejectStrings Array of strings that should be rejected
+ * @returns An object with the test results and details
+ */
+export const batchTestNFA = (
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  allowEpsilon: boolean,
+  acceptStrings: string[],
+  rejectStrings: string[]
+): {
+  passed: boolean;
+  acceptResults: {string: string; accepted: boolean; expected: boolean}[];
+  rejectResults: {string: string; accepted: boolean; expected: boolean}[];
+  summary: string;
+} => {
+  const acceptResults = acceptStrings.map(str => {
+    const result = simulateNFA(nodes, nodeMap, finalStates, str, allowEpsilon);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: true
+    };
+  });
+  
+  const rejectResults = rejectStrings.map(str => {
+    const result = simulateNFA(nodes, nodeMap, finalStates, str, allowEpsilon);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: false
+    };
+  });
+  
+  // Check if all tests passed
+  const allAcceptPassed = acceptResults.every(result => result.accepted === result.expected);
+  const allRejectPassed = rejectResults.every(result => result.accepted === result.expected);
+  const passed = allAcceptPassed && allRejectPassed;
+  
+  // Generate summary
+  let summary = passed
+    ? `All tests passed! (${acceptStrings.length} accepted, ${rejectStrings.length} rejected)`
+    : `Some tests failed. ${acceptResults.filter(r => r.accepted !== r.expected).length} accept tests and ${rejectResults.filter(r => r.accepted !== r.expected).length} reject tests failed.`;
+  
+  return {
+    passed,
+    acceptResults,
+    rejectResults,
+    summary
+  };
+};

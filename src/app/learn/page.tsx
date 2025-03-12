@@ -4,7 +4,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
-import { DFAProblem } from '../../simulators/dfa/problemsets/problems';
+
+// Define a common problem interface that includes type
+interface Problem {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  type: 'dfa' | 'nfa' | 'pda' | 'tm';
+}
 
 export default function LearnPage() {
   const { theme, toggleTheme } = useTheme();
@@ -12,8 +20,9 @@ export default function LearnPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'All' | 'Easy' | 'Medium' | 'Hard'>('All');
   const [currentTab, setCurrentTab] = useState<'dfa' | 'nfa' | 'pda' | 'tm'>('dfa');
-  const [problems, setProblems] = useState<Record<string, Omit<DFAProblem, 'accept' | 'reject'>>>({});
+  const [problems, setProblems] = useState<Problem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [problemCounts, setProblemCounts] = useState({ dfa: 0, nfa: 0, pda: 0, tm: 0 });
 
   // Fetch problems from API on page load
   useEffect(() => {
@@ -25,7 +34,24 @@ export default function LearnPage() {
           throw new Error('Failed to fetch problems');
         }
         const data = await response.json();
-        setProblems(data);
+        
+        // Make sure we have valid problem data
+        if (data.problems && Array.isArray(data.problems)) {
+          setProblems(data.problems);
+          
+          // Count the problems by type
+          const pdaCount = data.problems.filter((p: Problem) => p.type === 'pda').length;
+          
+          // Set problem counts
+          setProblemCounts({
+            dfa: data.types?.dfa || 0,
+            nfa: data.types?.nfa || 0,
+            pda: pdaCount,
+            tm: 0
+          });
+        } else {
+          console.error('Invalid problems data structure:', data);
+        }
       } catch (error) {
         console.error('Error fetching problems:', error);
       } finally {
@@ -37,33 +63,35 @@ export default function LearnPage() {
   }, []);
 
   // Function to encode problem ID for URL
-  const encodeProblemForURL = (problemId: string): string => {
-    const params = new URLSearchParams();
-    params.append('problemId', problemId);
-    return params.toString();
+  const encodeProblemForURL = (problem: Problem): string => {
+    return `problem=${problem.id}`;
   };
 
-  // Filter problems based on search query and difficulty
+  // Filter problems based on search query, difficulty and current tab
   const filteredProblems = useMemo(() => {
-    return Object.values(problems).filter(problem => {
+    return problems.filter(problem => {
       const matchesSearch = searchQuery === '' || 
         problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         problem.description.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesDifficulty = difficultyFilter === 'All' || problem.difficulty === difficultyFilter;
       
-      return matchesSearch && matchesDifficulty;
+      const matchesTab = problem.type === currentTab;
+      
+      return matchesSearch && matchesDifficulty && matchesTab;
     });
-  }, [problems, searchQuery, difficultyFilter]);
+  }, [problems, searchQuery, difficultyFilter, currentTab]);
 
-  // Get counts for each difficulty level
+  // Get counts for each difficulty level for the current tab
   const difficultyCounts = useMemo(() => {
     const counts = { Easy: 0, Medium: 0, Hard: 0 };
-    Object.values(problems).forEach(problem => {
-      counts[problem.difficulty]++;
-    });
+    problems
+      .filter(problem => problem.type === currentTab)
+      .forEach(problem => {
+        counts[problem.difficulty]++;
+      });
     return counts;
-  }, [problems]);
+  }, [problems, currentTab]);
 
   // Function to render difficulty badge
   const renderDifficultyBadge = (difficulty: 'Easy' | 'Medium' | 'Hard') => {
@@ -134,7 +162,7 @@ export default function LearnPage() {
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}
             >
-              DFA Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-teal-500 text-white">{Object.keys(problems).length}</span>
+              DFA Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-teal-500 text-white">{problemCounts.dfa}</span>
             </button>
             <button 
               onClick={() => setCurrentTab('nfa')}
@@ -144,7 +172,7 @@ export default function LearnPage() {
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}
             >
-              NFA Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-500 text-white">Coming Soon</span>
+              NFA Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-purple-500 text-white">{problemCounts.nfa}</span>
             </button>
             <button 
               onClick={() => setCurrentTab('pda')}
@@ -154,7 +182,7 @@ export default function LearnPage() {
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}
             >
-              PDA Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-500 text-white">Coming Soon</span>
+              PDA Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-blue-500 text-white">{problemCounts.pda}</span>
             </button>
             <button 
               onClick={() => setCurrentTab('tm')}
@@ -184,7 +212,7 @@ export default function LearnPage() {
             </div>
             <div className={`px-4 py-2 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm flex items-center`}>
               <div className={`w-3 h-3 rounded-full bg-gray-500 mr-2`}></div>
-              <span>Total: {Object.keys(problems).length}</span>
+              <span>Total: {problems.filter(p => p.type === currentTab).length}</span>
             </div>
           </div>
           
@@ -196,7 +224,7 @@ export default function LearnPage() {
           )}
           
           {/* Problems grid */}
-          {!isLoading && currentTab === 'dfa' && (
+          {!isLoading && (currentTab === 'dfa' || currentTab === 'nfa' || currentTab === 'pda') && (
             <>
               {filteredProblems.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -216,11 +244,29 @@ export default function LearnPage() {
                         
                         <div className="flex justify-end">
                           <Link 
-                            href={`/simulator/dfa?${encodeProblemForURL(problem.id)}`}
+                            href={`/simulator/${problem.type}?${encodeProblemForURL(problem)}`}
                             className={`px-5 py-2 font-medium rounded-md transition-colors ${
                               isDark 
-                                ? 'bg-teal-600 text-white hover:bg-teal-700' 
-                                : 'bg-teal-500 text-white hover:bg-teal-600'
+                                ? `${problem.type === 'dfa' 
+                                    ? 'bg-teal-600' 
+                                    : problem.type === 'nfa' 
+                                      ? 'bg-purple-600' 
+                                      : 'bg-blue-600'} text-white hover:${
+                                        problem.type === 'dfa' 
+                                          ? 'bg-teal-700' 
+                                          : problem.type === 'nfa' 
+                                            ? 'bg-purple-700' 
+                                            : 'bg-blue-700'}` 
+                                : `${problem.type === 'dfa' 
+                                    ? 'bg-teal-500' 
+                                    : problem.type === 'nfa' 
+                                      ? 'bg-purple-500' 
+                                      : 'bg-blue-500'} text-white hover:${
+                                        problem.type === 'dfa' 
+                                          ? 'bg-teal-600' 
+                                          : problem.type === 'nfa' 
+                                            ? 'bg-purple-600' 
+                                            : 'bg-blue-600'}`
                             }`}
                           >
                             Solve Problem
@@ -239,16 +285,12 @@ export default function LearnPage() {
             </>
           )}
           
-          {!isLoading && currentTab !== 'dfa' && (
+          {!isLoading && (currentTab !== 'dfa' && currentTab !== 'nfa' && currentTab !== 'pda') && (
             <div className={`rounded-lg p-12 text-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
               <h3 className="text-2xl font-semibold mb-2">Coming Soon!</h3>
               <p className="text-lg mb-6">{currentTab.toUpperCase()} practice problems are under development</p>
               <p className="text-gray-500 dark:text-gray-400">
-                We&apos;re working hard to create high-quality practice problems for {
-                  currentTab === 'nfa' ? 'Non-deterministic Finite Automata' :
-                  currentTab === 'pda' ? 'Pushdown Automata' :
-                  'Turing Machines'
-                }. Check back soon!
+                We&apos;re working hard to create high-quality practice problems for Turing Machines. Check back soon!
               </p>
             </div>
           )}

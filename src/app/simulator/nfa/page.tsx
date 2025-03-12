@@ -10,12 +10,20 @@ interface NFASimulatorPageProps {
 export default function NFASimulatorPage({ searchParams }: NFASimulatorPageProps) {
   const [simulatorType] = useState<'Automata'>('Automata');
   
-  // Get the DFA from URL parameters if available
+  // Get the NFA from URL parameters if available
   const nfaParam = searchParams?.nfa as string | undefined;
+  
+  // Get problem ID if coming from learning page
+  const problemId = searchParams?.problem as string | undefined;
   
   return (
     <>
-      {simulatorType === 'Automata' && <AutomataSimulator initialNFA={nfaParam} />}
+      {simulatorType === 'Automata' && (
+        <AutomataSimulator 
+          initialNFA={nfaParam} 
+          problemId={problemId}
+        />
+      )}
     </>
   );
 } 

@@ -40,7 +40,7 @@ export interface ControlPanelProps {
   onInputChange: (value: string) => void;
   onReset: () => void;
   onToggleGrid: () => void;
-  onLoadJson: () => void;
+  onLoadJson?: () => void;
   onValidate: () => void;
   onToggleEpsilon: () => void;
   onSave?: () => void;
@@ -54,6 +54,7 @@ export interface ControlPanelProps {
   stepIndex: number;
   allowEpsilon: boolean;
   isLoggedIn?: boolean;
+  isProblemMode?: boolean;
 }
 
 // Input Popup Props for NFA

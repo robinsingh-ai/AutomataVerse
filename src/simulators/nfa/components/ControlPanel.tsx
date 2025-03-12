@@ -25,7 +25,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   allowEpsilon,
   onSave,
   onClearCanvas,
-  isLoggedIn
+  isLoggedIn,
+  isProblemMode
 }) => {
   const { theme } = useTheme();
   
@@ -72,16 +73,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {allowEpsilon ? 'Disable ε-transitions' : 'Enable ε-transitions'}
           </button>
           
-          <button
-            onClick={onLoadJson}
-            className={`w-full font-semibold py-2 px-4 rounded ${
-              theme === 'dark'
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-purple-500 hover:bg-purple-600 text-white'
-            }`}
-          >
-            Load NFA from JSON
-          </button>
+          {!isProblemMode && (
+            <>
+              {onLoadJson && (
+                <button
+                  onClick={onLoadJson}
+                  className={`w-full font-semibold py-2 px-4 rounded ${
+                    theme === 'dark'
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  }`}
+                >
+                  Load NFA from JSON
+                </button>
+              )}
+              
+              <button
+                onClick={onClearCanvas}
+                className={`w-full font-semibold py-2 px-4 rounded ${
+                  theme === 'dark'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
+              >
+                Clear Canvas
+              </button>
+              
+              {isLoggedIn && onSave && (
+                <button
+                  onClick={onSave}
+                  className={`w-full font-semibold py-2 px-4 rounded ${
+                    theme === 'dark'
+                      ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                      : 'bg-teal-500 hover:bg-teal-600 text-white'
+                  }`}
+                >
+                  Save NFA
+                </button>
+              )}
+            </>
+          )}
           
           <button
             onClick={onValidate}
@@ -93,30 +124,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           >
             Validate NFA
           </button>
-          
-          <button
-            onClick={onClearCanvas}
-            className={`w-full font-semibold py-2 px-4 rounded ${
-              theme === 'dark'
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white'
-            }`}
-          >
-            Clear Canvas
-          </button>
-          
-          {isLoggedIn && onSave && (
-            <button
-              onClick={onSave}
-              className={`w-full font-semibold py-2 px-4 rounded ${
-                theme === 'dark'
-                  ? 'bg-teal-600 hover:bg-teal-700 text-white'
-                  : 'bg-teal-500 hover:bg-teal-600 text-white'
-              }`}
-            >
-              Save NFA
-            </button>
-          )}
         </div>
         
         <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -204,6 +211,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   : theme === 'dark' ? "bg-red-800 text-red-100" : "bg-red-100 text-red-800"
           }`}>
             {validationResult}
+          </div>
+        )}
+        
+        {isProblemMode && (
+          <div className={`mt-4 p-2 rounded ${theme === 'dark' ? "bg-blue-800 text-blue-100" : "bg-blue-100 text-blue-800"}`}>
+            <span className="font-medium">Problem Mode:</span> Solve the problem using this NFA simulator
           </div>
         )}
         

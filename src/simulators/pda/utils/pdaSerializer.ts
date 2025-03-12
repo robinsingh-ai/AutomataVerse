@@ -350,3 +350,69 @@ export interface Transition {
   targetid: string;
   label: string;
 }
+
+/**
+ * Batch tests a PDA against multiple input strings
+ * Returns detailed results for both accept and reject test cases
+ */
+export const batchTestPDA = (
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  acceptStrings: string[],
+  rejectStrings: string[],
+  initialStack: string[] = ['Z']
+): {
+  passed: boolean;
+  acceptResults: {string: string; accepted: boolean; expected: boolean}[];
+  rejectResults: {string: string; accepted: boolean; expected: boolean}[];
+  summary: string;
+} => {
+  const acceptResults = acceptStrings.map(str => {
+    const result = simulatePDA(nodes, nodeMap, finalStates, str, initialStack);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: true
+    };
+  });
+  
+  const rejectResults = rejectStrings.map(str => {
+    const result = simulatePDA(nodes, nodeMap, finalStates, str, initialStack);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: false
+    };
+  });
+  
+  // Check if all tests passed
+  const allAcceptPassed = acceptResults.every(r => r.accepted);
+  const allRejectPassed = rejectResults.every(r => !r.accepted);
+  const passed = allAcceptPassed && allRejectPassed;
+  
+  // Generate summary
+  let summary = '';
+  if (passed) {
+    summary = `All tests passed! Your PDA correctly accepts and rejects all test strings.`;
+  } else {
+    const acceptFailed = acceptResults.filter(r => !r.accepted).length;
+    const rejectFailed = rejectResults.filter(r => r.accepted).length;
+    summary = `Tests failed: ${acceptFailed + rejectFailed} out of ${acceptStrings.length + rejectStrings.length} tests failed.`;
+    
+    if (acceptFailed > 0) {
+      summary += ` ${acceptFailed} strings that should be accepted were rejected.`;
+    }
+    
+    if (rejectFailed > 0) {
+      summary += ` ${rejectFailed} strings that should be rejected were accepted.`;
+    }
+  }
+  
+  return {
+    passed,
+    acceptResults,
+    rejectResults,
+    summary
+  };
+};

@@ -19,7 +19,8 @@ import {
   validateNFA, 
   getNextConfiguration, 
   simulateNFA,
-  computeEpsilonClosure
+  computeEpsilonClosure,
+  batchTestNFA
 } from './utils/nfaSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
@@ -27,6 +28,7 @@ import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import SaveMachineToast from '../../app/components/SaveMachineToast';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import ProblemPanel from './components/ProblemPanel';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -39,14 +41,18 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
 
 interface NFASimulatorProps {
   initialNFA?: string; // Optional JSON string to initialize the NFA
+  problemId?: string; // Optional problem ID for problem panel
 }
 
-const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
+const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   
   // Authentication state
   const [user] = useAuthState(auth);
+  
+  // Check if coming from a problem (learning page)
+  const isFromProblem = !!problemId;
   
   const [nodes, setNodes] = useState<Node[]>([]);
   const [nodeMap, setNodeMap] = useState<NodeMap>({});
@@ -92,6 +98,9 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
   // Save machine state
   const [showSaveToast, setShowSaveToast] = useState<boolean>(false);
   const [shareUrl, setShareUrl] = useState<string>('');
+  
+  // Test panel visibility state - hide completely when coming from a problem
+  const [testPanelVisible, setTestPanelVisible] = useState<boolean>(!isFromProblem);
   
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -146,6 +155,11 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
       }
     }
   }, [isClient, initialNFA, searchParams]);
+
+  // Update testPanelVisible when problemId changes
+  useEffect(() => {
+    setTestPanelVisible(!isFromProblem);
+  }, [isFromProblem]);
 
   // Update NodeMap whenever nodes changes
   useEffect(() => {
@@ -869,6 +883,26 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
     setTimeout(() => handleStepWise(), 10);
   };
 
+  // Handle batch testing for the Problem Panel
+  const handleBatchTest = (acceptStrings: string[], rejectStrings: string[]): {
+    passed: boolean;
+    acceptResults: { string: string; accepted: boolean; expected: boolean }[];
+    rejectResults: { string: string; accepted: boolean; expected: boolean }[];
+    summary: string;
+  } => {
+    // Validate NFA first
+    if (!validateCurrentNFA()) {
+      return {
+        passed: false,
+        acceptResults: [],
+        rejectResults: [],
+        summary: "NFA is not valid. Please fix the errors before testing."
+      };
+    }
+    
+    return batchTestNFA(nodes, nodeMap, finiteNodes, allowEpsilon, acceptStrings, rejectStrings);
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -898,13 +932,14 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
         onToggleGrid={() => setShowGrid(!showGrid)}
         stepIndex={stepIndex}
         onReset={resetSimulation}
-        onLoadJson={toggleJsonInput}
+        onLoadJson={isFromProblem ? undefined : toggleJsonInput}
         onValidate={validateCurrentNFA}
         onToggleEpsilon={handleToggleEpsilon}
         allowEpsilon={allowEpsilon}
-        onSave={handleSave}
+        onSave={isFromProblem ? undefined : handleSave}
         onClearCanvas={resetSimulation}
         isLoggedIn={!!user}
+        isProblemMode={isFromProblem}
       />
       
       <NFAInfoPanel 
@@ -918,10 +953,12 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
         allowEpsilon={allowEpsilon}
       />
       
-      <TestInputPanel 
-        onTestInput={handleTestInput} 
-        onShareNFA={shareNFA}
-      />
+      {testPanelVisible && (
+        <TestInputPanel 
+          onTestInput={handleTestInput}
+          onShareNFA={shareNFA}
+        />
+      )}
       
       <div 
         style={{ 
@@ -1009,6 +1046,13 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA }) => {
         onClose={() => setShowSaveToast(false)}
         onSave={handleSaveMachine}
       />
+      
+      {problemId && (
+        <ProblemPanel
+          problemId={problemId}
+          onTestSolution={handleBatchTest}
+        />
+      )}
     </div>
   );
 };

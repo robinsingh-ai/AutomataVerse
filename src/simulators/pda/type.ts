@@ -38,11 +38,11 @@ export interface ControlPanelProps {
   onSetFinite: () => void;
   onRun: () => void;
   onStep: () => void;
-  onInputChange: (value: string) => void;
+  onInputChange: (inputString: string) => void;
   onReset: () => void;
   onToggleGrid: () => void;
-  onLoadJson: () => void;
-  onValidate: () => void;
+  onLoadJson?: () => void;
+  onValidate: () => boolean;
   onSave?: () => void;
   onClearCanvas: () => void;
   inputString: string;
@@ -53,7 +53,8 @@ export interface ControlPanelProps {
   showGrid: boolean;
   stepIndex: number;
   stack: Stack;
-  isLoggedIn?: boolean;
+  isLoggedIn: boolean;
+  problemMode?: boolean;
 }
 
 // Input Popup Props for PDA
