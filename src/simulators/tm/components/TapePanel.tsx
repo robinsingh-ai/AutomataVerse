@@ -6,15 +6,17 @@ import { useTheme } from '../../../app/context/ThemeContext';
 import { Tape, TapeMode } from '../type';
 
 interface TapePanelProps {
-  tapes: Tape[];
+  tape: Tape;
+  index: number;
   tapeMode: TapeMode;
+  isRunning: boolean;
 }
 
-const TapePanel: React.FC<TapePanelProps> = ({ tapes, tapeMode }) => {
+const TapePanel: React.FC<TapePanelProps> = ({ tape, index, tapeMode, isRunning }) => {
   const { theme } = useTheme();
   
   // Function to render a single tape
-  const renderTape = (tape: Tape, index: number) => {
+  const renderTape = () => {
     // Get all positions from the tape content
     const positions = Array.from(tape.content.keys());
     
@@ -28,64 +30,36 @@ const TapePanel: React.FC<TapePanelProps> = ({ tapes, tapeMode }) => {
       positions.length > 0 ? Math.max(...positions) : 0
     );
     
-    // Generate a range of positions to display
-    const displayRange = Array.from(
-      { length: maxPosition - minPosition + 1 },
-      (_, i) => i + minPosition
-    );
+    // Create an array of positions to display
+    const displayPositions = [];
+    for (let i = minPosition; i <= maxPosition; i++) {
+      displayPositions.push(i);
+    }
     
     return (
-      <div key={index} className="mb-6">
-        <h3 className={`text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-          Tape {index + 1}:
-        </h3>
-        <div className="flex flex-col">
-          {/* Tape cells */}
-          <div className="flex overflow-x-auto pb-2">
-            {displayRange.map(pos => (
-              <div
-                key={pos}
-                className={`flex-shrink-0 w-10 h-10 flex items-center justify-center border 
-                  ${pos === tape.headPosition
-                    ? `border-2 ${theme === 'dark' ? 'border-red-500' : 'border-red-600'}`
-                    : `border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`
-                  } ${
-                    theme === 'dark' ? 'bg-gray-700' : 'bg-white'
-                  }`}
+      <div className={`${
+        isRunning && index === 0 ? 'border-2 border-green-500 dark:border-green-600' : ''
+      }`}>
+        <div className={`mb-2 text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+          {tapeMode === '1-tape' ? 'Tape' : `Tape ${index + 1}`}
+        </div>
+        
+        <div className="overflow-x-auto">
+          <div className="flex min-w-full">
+            {displayPositions.map((position) => (
+              <div 
+                key={position}
+                className={`w-10 h-10 flex items-center justify-center border ${
+                  position === tape.headPosition
+                    ? theme === 'dark'
+                      ? 'bg-blue-700 text-white border-blue-500'
+                      : 'bg-blue-100 border-blue-500'
+                    : theme === 'dark'
+                      ? 'bg-gray-700 border-gray-600'
+                      : 'bg-white border-gray-200'
+                }`}
               >
-                {tape.content.has(pos) ? tape.content.get(pos) : '□'}
-              </div>
-            ))}
-          </div>
-          
-          {/* Position indicators */}
-          <div className="flex overflow-x-auto">
-            {displayRange.map(pos => (
-              <div
-                key={pos}
-                className={`flex-shrink-0 w-10 h-6 flex items-center justify-center text-xs
-                  ${pos === tape.headPosition
-                    ? theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                    : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                  }`}
-              >
-                {pos}
-              </div>
-            ))}
-          </div>
-          
-          {/* Head indicator */}
-          <div className="flex overflow-x-auto">
-            {displayRange.map(pos => (
-              <div
-                key={pos}
-                className={`flex-shrink-0 w-10 h-6 flex items-center justify-center`}
-              >
-                {pos === tape.headPosition && (
-                  <svg className={`w-6 h-6 ${theme === 'dark' ? 'text-red-500' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                )}
+                {tape.content.get(position) || '□'}
               </div>
             ))}
           </div>
@@ -95,9 +69,16 @@ const TapePanel: React.FC<TapePanelProps> = ({ tapes, tapeMode }) => {
   };
   
   return (
-    <DraggablePanel title="Turing Machine Tapes" defaultPosition={{ x: window.innerWidth - 340, y: 80 }} width={320}>
+    <DraggablePanel 
+      title={`Tape #${index + 1}`} 
+      defaultPosition={{ 
+        x: window.innerWidth - 340, 
+        y: 80 + (index * 240) 
+      }} 
+      width={320}
+    >
       <div className="space-y-2">
-        {tapes.map((tape, index) => renderTape(tape, index))}
+        {renderTape()}
         
         <div className={`text-xs italic ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
           □ represents the blank symbol

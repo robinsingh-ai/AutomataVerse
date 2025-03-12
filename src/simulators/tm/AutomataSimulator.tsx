@@ -852,7 +852,7 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, p
         finalStates={Array.from(finiteNodes)}
         currentState={Array.from(currNodes)[0] || null}
         tapeSymbols={tapeSymbols}
-        inputString={inputString}
+        inputSymbols={inputSymbols}
         tapeMode={tapeMode}
       />
       
