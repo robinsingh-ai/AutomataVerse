@@ -3,8 +3,9 @@ import { DFA_PROBLEMS } from '../../../simulators/dfa/problemsets/problems';
 import { NFA_PROBLEMS } from '../../../simulators/nfa/problemsets/problems';
 import { PDA_PROBLEMS } from '../../../simulators/pda/problemsets/problems';
 import { TM_PROBLEMS } from '../../../simulators/tm/problemsets/problems';
+import fsmProblems from '../../../simulators/fsm/problemsets/problems';
 
-// This route serves DFA, NFA, PDA, and TM problems without the accept/reject arrays
+// This route serves DFA, NFA, PDA, TM, and FSM problems without the accept/reject arrays
 // to avoid revealing the answers to users
 export async function GET() {
   // Create sanitized versions of DFA problems
@@ -55,12 +56,25 @@ export async function GET() {
     };
   });
 
+  // Create sanitized versions of FSM problems
+  const sanitizedFSMProblems = fsmProblems.map((problem) => {
+    // Extract solution and include machine type
+    const { solution, ...sanitizedProblem } = problem;
+    // Add type indicator
+    return {
+      ...sanitizedProblem,
+      type: 'fsm',
+      difficulty: problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1) as "Easy" | "Medium" | "Hard"
+    };
+  });
+
   // Combine all problem sets
   const allProblems = [
     ...sanitizedDFAProblems, 
     ...sanitizedNFAProblems, 
     ...sanitizedPDAProblems,
-    ...sanitizedTMProblems
+    ...sanitizedTMProblems,
+    ...sanitizedFSMProblems
   ];
 
   // Return structured response with all problem types
@@ -71,7 +85,8 @@ export async function GET() {
       dfa: sanitizedDFAProblems.length,
       nfa: sanitizedNFAProblems.length,
       pda: sanitizedPDAProblems.length,
-      tm: sanitizedTMProblems.length
+      tm: sanitizedTMProblems.length,
+      fsm: sanitizedFSMProblems.length
     }
   });
 } 

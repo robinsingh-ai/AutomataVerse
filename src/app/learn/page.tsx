@@ -11,7 +11,8 @@ interface Problem {
   title: string;
   description: string;
   difficulty: "Easy" | "Medium" | "Hard";
-  type: 'dfa' | 'nfa' | 'pda' | 'tm';
+  type: 'dfa' | 'nfa' | 'pda' | 'tm' | 'fsm';
+  machineType?: 'Moore' | 'Mealy'; // For FSM problems
 }
 
 export default function LearnPage() {
@@ -19,10 +20,10 @@ export default function LearnPage() {
   const isDark = theme === 'dark';
   const [searchQuery, setSearchQuery] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'All' | 'Easy' | 'Medium' | 'Hard'>('All');
-  const [currentTab, setCurrentTab] = useState<'dfa' | 'nfa' | 'pda' | 'tm'>('dfa');
+  const [currentTab, setCurrentTab] = useState<'dfa' | 'nfa' | 'pda' | 'tm' | 'fsm'>('dfa');
   const [problems, setProblems] = useState<Problem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [problemCounts, setProblemCounts] = useState({ dfa: 0, nfa: 0, pda: 0, tm: 0 });
+  const [problemCounts, setProblemCounts] = useState({ dfa: 0, nfa: 0, pda: 0, tm: 0, fsm: 0 });
 
   // Fetch problems from API on page load
   useEffect(() => {
@@ -44,7 +45,8 @@ export default function LearnPage() {
             dfa: data.types?.dfa || 0,
             nfa: data.types?.nfa || 0,
             pda: data.types?.pda || 0,
-            tm: data.types?.tm || 0
+            tm: data.types?.tm || 0,
+            fsm: data.types?.fsm || 0
           });
         } else {
           console.error('Invalid problems data structure:', data);
@@ -191,6 +193,16 @@ export default function LearnPage() {
             >
               TM Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-500 text-white">{problemCounts.tm}</span>
             </button>
+            <button 
+              onClick={() => setCurrentTab('fsm')}
+              className={`px-4 py-2 text-sm font-medium ${
+                currentTab === 'fsm' 
+                  ? `border-b-2 ${isDark ? 'border-gray-400 text-gray-400' : 'border-gray-500 text-gray-600'}` 
+                  : isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              FSM Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-500 text-white">{problemCounts.fsm}</span>
+            </button>
           </div>
           
           {/* Difficulty stats */}
@@ -221,7 +233,7 @@ export default function LearnPage() {
           )}
           
           {/* Problems grid */}
-          {!isLoading && (currentTab === 'dfa' || currentTab === 'nfa' || currentTab === 'pda' || currentTab === 'tm') && (
+          {!isLoading && (currentTab === 'dfa' || currentTab === 'nfa' || currentTab === 'pda' || currentTab === 'tm' || currentTab === 'fsm') && (
             <>
               {filteredProblems.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -233,45 +245,33 @@ export default function LearnPage() {
                       }`}
                     >
                       <div className="p-6">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="text-xl font-bold">{problem.title}</div>
+                        <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-semibold">
+                            {problem.title}
+                            {problem.type === 'fsm' && problem.machineType && (
+                              <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                problem.machineType === 'Moore' 
+                                  ? isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
+                                  : isDark ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'
+                              }`}>
+                                {problem.machineType}
+                              </span>
+                            )}
+                          </h3>
                           {renderDifficultyBadge(problem.difficulty)}
                         </div>
-                        <p className="mb-6 text-gray-500 dark:text-gray-400 line-clamp-3">{problem.description}</p>
-                        
-                        <div className="flex justify-end">
+                        <p className={`mb-6 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {problem.description.length > 150 
+                            ? `${problem.description.substring(0, 150)}...` 
+                            : problem.description}
+                        </p>
+                        <div className="mt-auto">
                           <Link 
                             href={`/simulator/${problem.type}?${encodeProblemForURL(problem)}`}
-                            className={`px-5 py-2 font-medium rounded-md transition-colors ${
+                            className={`inline-block px-4 py-2 text-sm font-medium rounded-lg ${
                               isDark 
-                                ? `${problem.type === 'dfa' 
-                                    ? 'bg-teal-600' 
-                                    : problem.type === 'nfa' 
-                                      ? 'bg-purple-600' 
-                                      : problem.type === 'tm'
-                                        ? 'bg-red-600'
-                                        : 'bg-blue-600'} text-white hover:${
-                                        problem.type === 'dfa' 
-                                          ? 'bg-teal-700' 
-                                          : problem.type === 'nfa' 
-                                            ? 'bg-purple-700'
-                                            : problem.type === 'tm'
-                                              ? 'bg-red-700' 
-                                              : 'bg-blue-700'}` 
-                                : `${problem.type === 'dfa' 
-                                    ? 'bg-teal-500' 
-                                    : problem.type === 'nfa' 
-                                      ? 'bg-purple-500'
-                                      : problem.type === 'tm'
-                                        ? 'bg-red-500' 
-                                        : 'bg-blue-500'} text-white hover:${
-                                        problem.type === 'dfa' 
-                                          ? 'bg-teal-600' 
-                                          : problem.type === 'nfa' 
-                                            ? 'bg-purple-600'
-                                            : problem.type === 'tm'
-                                              ? 'bg-red-600' 
-                                              : 'bg-blue-600'}`
+                                ? 'bg-teal-600 hover:bg-teal-700 text-white' 
+                                : 'bg-teal-500 hover:bg-teal-600 text-white'
                             }`}
                           >
                             Solve Problem

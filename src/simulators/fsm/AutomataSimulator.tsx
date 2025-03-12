@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import ControlPanel from './components/ControlPanel';
 import InputPopup from './components/InputPopup';
 import OutputPanel from './components/OutputPanel';
+import ProblemPanel from './components/ProblemPanel';
 import { Node, NodeMap, HighlightedTransition, StageProps, FSMState, MachineType, Transition } from './type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
@@ -17,7 +18,10 @@ import {
   serializeFSM, 
   encodeFSMForURL, 
   validateFSM, 
-  getNextConfiguration
+  getNextConfiguration,
+  testFSM,
+  batchTestFSM,
+  TestCase
 } from './utils/fsmSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
@@ -38,9 +42,10 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
 
 interface AutomataSimulatorProps {
   initialMachine?: string; // Optional JSON string to initialize the FSM
+  problemId?: string; // Optional problem ID to load a specific problem
 }
 
-const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine }) => {
+const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, problemId }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   
@@ -62,6 +67,10 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
     draggable: true
   });
   
+  // Problem mode state
+  const [problem, setProblem] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
   // Initialize stage props with window dimensions after component mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -72,6 +81,40 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
       }));
     }
   }, []);
+  
+  // Fetch problem data if problemId is provided
+  useEffect(() => {
+    const fetchProblem = async () => {
+      if (!problemId) return;
+      
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/problems/fsm?id=${problemId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch problem');
+        }
+        
+        const problemData = await response.json();
+        setProblem(problemData);
+        
+        // Set machine type based on problem
+        if (problemData.machineType) {
+          setMachineType(problemData.machineType);
+        }
+        
+        // If there's an initial node map, load it
+        if (problemData.initialNodeMap) {
+          loadMachineFromNodeMap(problemData.initialNodeMap);
+        }
+      } catch (error) {
+        console.error('Error fetching problem:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProblem();
+  }, [problemId]);
   
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
@@ -772,6 +815,58 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
     return true;
   };
 
+  // Helper function to load a machine from a NodeMap
+  const loadMachineFromNodeMap = (nodeMap: NodeMap): void => {
+    setNodeMap(nodeMap);
+    const nodesArray = Object.values(nodeMap);
+    setNodes(nodesArray);
+    
+    // Reset the simulator state
+    setSelectedNode(null);
+    setCurrNodes(new Set());
+    setHighlightedNodes(new Set());
+    setHighlightedTransitions([]);
+    setInputString('');
+    setValidationResult(null);
+    setStepIndex(0);
+    setCurrentConfiguration(null);
+    setOutputSequence([]);
+    
+    // Set finite nodes
+    const finiteNodesSet = new Set<string>();
+    nodesArray.forEach(node => {
+      if (node.isAccepting) {
+        finiteNodesSet.add(node.id);
+      }
+    });
+    setFiniteNodes(finiteNodesSet);
+  };
+
+  // Function to test the current FSM against a test string
+  const testSolution = (testString: string): string => {
+    if (!validateCurrentMachine()) {
+      return 'Invalid FSM';
+    }
+    
+    // Use the utility function to test the FSM
+    return testFSM(testString, nodeMap, finiteNodes, machineType);
+  };
+  
+  // Function to batch test the current FSM against all test cases
+  const batchTestSolution = () => {
+    if (!problem || !problem.testStrings) {
+      return { passed: 0, total: 0, results: [] };
+    }
+    
+    // Use the utility function to batch test the FSM
+    return batchTestFSM(
+      problem.testStrings as TestCase[],
+      nodeMap,
+      finiteNodes,
+      machineType
+    );
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -808,6 +903,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         onSave={handleSave}
         onClearCanvas={clearCanvas}
         isLoggedIn={!!user}
+        problemMode={!!problem}
       />
       
       <FSMInfoPanel 
@@ -823,10 +919,21 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine })
         outputSequence={currentConfiguration?.outputSequence || []}
       />
       
-      <TestInputPanel 
-        onTestInput={handleTestInput} 
-        onShareMachine={shareMachine}
-      />
+      {!problem && (
+        <TestInputPanel 
+          onTestInput={handleTestInput} 
+          onShareMachine={shareMachine}
+        />
+      )}
+      
+      {problem && (
+        <ProblemPanel
+          problem={problem}
+          onTestSolution={testSolution}
+          onBatchTest={batchTestSolution}
+          isLoading={isLoading}
+        />
+      )}
       
       <div 
         style={{ 

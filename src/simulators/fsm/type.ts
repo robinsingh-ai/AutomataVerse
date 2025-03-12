@@ -62,6 +62,7 @@ export interface ControlPanelProps {
   stepIndex: number;
   machineType: MachineType; // Current machine type
   isLoggedIn?: boolean; // New prop to check if user is logged in
+  problemMode?: boolean; // New prop to indicate problem mode
 }
 
 // Input Popup Props for FSM

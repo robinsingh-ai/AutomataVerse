@@ -1,9 +1,30 @@
-import { Node, FSMState, Transition, MachineType } from '../type';
+import { Node, FSMState, MachineType } from '../type';
 
 export interface SerializedFSM {
   nodes: Node[];
   finalStates: string[];
   machineType: MachineType;
+}
+
+// Interface for test case
+export interface TestCase {
+  input: string;
+  expectedOutput: string;
+}
+
+// Interface for test result
+export interface TestResult {
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  passed: boolean;
+}
+
+// Interface for batch test results
+export interface BatchTestResults {
+  passed: number;
+  total: number;
+  results: TestResult[];
 }
 
 /**
@@ -195,10 +216,14 @@ export const decodeFSMFromURL = (encodedMachine: string): SerializedFSM | null =
  */
 export const getNextConfiguration = (
   currentConfig: FSMState,
-  nodes: Node[],
-  nodeMap: Record<string, Node>,
+  nodes: Node[] | Record<string, Node>,
   machineType: MachineType
 ): FSMState | null => {
+  // Handle nodeMap directly or convert nodes array to nodeMap
+  const nodeMap: Record<string, Node> = Array.isArray(nodes) 
+    ? nodes.reduce((map, node) => ({ ...map, [node.id]: node }), {})
+    : nodes;
+  
   const currentNode = nodeMap[currentConfig.stateId];
   
   if (!currentNode) {
@@ -235,7 +260,7 @@ export const getNextConfiguration = (
   }
   
   // Update output sequence based on machine type
-  let newOutputSequence = [...currentConfig.outputSequence];
+  const newOutputSequence = [...currentConfig.outputSequence];
   
   if (machineType === 'Moore') {
     // In Moore machines, output is tied to the target state
@@ -252,5 +277,85 @@ export const getNextConfiguration = (
     inputIndex: currentConfig.inputIndex + 1,
     outputSequence: newOutputSequence,
     halted: false
+  };
+};
+
+/**
+ * Tests a single input string against an FSM
+ */
+export const testFSM = (
+  input: string,
+  nodes: Node[] | Record<string, Node>,
+  finalStates: Set<string>,
+  machineType: MachineType
+): string => {
+  // Validate the FSM first if nodes is an array
+  if (Array.isArray(nodes)) {
+    const validation = validateFSM(nodes, finalStates, machineType);
+    if (!validation.isValid) {
+      return 'Invalid FSM';
+    }
+  }
+  
+  // Convert nodes array to nodeMap if needed
+  const nodeMap = Array.isArray(nodes) 
+    ? nodes.reduce((map, node) => ({ ...map, [node.id]: node }), {})
+    : nodes;
+
+  // Setup initial state
+  let state: FSMState = {
+    stateId: 'q0',
+    currentInput: input,
+    inputIndex: 0,
+    outputSequence: [],
+    halted: false
+  };
+
+  // For Moore machines, add the initial state output
+  if (machineType === 'Moore') {
+    // Use proper type assertion with key access
+    const initialNode = nodeMap && 'q0' in nodeMap ? nodeMap['q0'] as Node : undefined;
+    if (initialNode) {
+      state.outputSequence.push(initialNode.output || '');
+    }
+  }
+  
+  // Process each character in the input string
+  while (state.inputIndex < state.currentInput.length && !state.halted) {
+    const nextState = getNextConfiguration(state, nodeMap, machineType);
+    if (!nextState) break;
+    state = nextState;
+  }
+  
+  return state.outputSequence.join('');
+};
+
+/**
+ * Batch tests an FSM against multiple input strings
+ */
+export const batchTestFSM = (
+  testCases: TestCase[],
+  nodes: Node[] | Record<string, Node>,
+  finalStates: Set<string>,
+  machineType: MachineType
+): BatchTestResults => {
+  const results: TestResult[] = testCases.map(testCase => {
+    const actualOutput = testFSM(testCase.input, nodes, finalStates, machineType);
+    const passed = actualOutput === testCase.expectedOutput;
+    
+    return {
+      input: testCase.input,
+      expectedOutput: testCase.expectedOutput,
+      actualOutput,
+      passed
+    };
+  });
+  
+  const passedCount = results.filter(result => result.passed).length;
+  
+  return {
+    passed: passedCount,
+    total: results.length,
+    results
   };
 };
