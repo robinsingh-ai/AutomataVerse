@@ -193,7 +193,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
         }
         
         setNodes(parsedMachine.nodes);
-        setFiniteNodes(finalStatesSet);
+        setFiniteNodes(new Set<string>());
         setMachineType(machineType);
         
         // Reset simulation state
@@ -443,7 +443,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
     setNodes([]);
     setNodeMap({});
     setSelectedNode(null);
-    setFiniteNodes(new Set());
+    setFiniteNodes(new Set<string>());
     setInputString('');
     
     // Reset validation
@@ -499,7 +499,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
       await sleep(500); // Delay for animation
       
       // Get next configuration
-      const nextConfig = getNextConfiguration(currentConfig, nodes, nodeMap, machineType);
+      const nextConfig = getNextConfiguration(currentConfig, nodeMap, machineType);
       
       // If no valid transition exists
       if (!nextConfig || nextConfig.halted) {
@@ -578,7 +578,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
     }
     
     // Get next configuration
-    const nextConfig = getNextConfiguration(currentConfiguration, nodes, nodeMap, machineType);
+    const nextConfig = getNextConfiguration(currentConfiguration, nodeMap, machineType);
     
     // If no valid transition exists or we've halted
     if (!nextConfig || nextConfig.halted || currentConfiguration.inputIndex >= inputString.length) {
@@ -832,14 +832,9 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
     setCurrentConfiguration(null);
     setOutputSequence([]);
     
-    // Set finite nodes
-    const finiteNodesSet = new Set<string>();
-    nodesArray.forEach(node => {
-      if (node.isAccepting) {
-        finiteNodesSet.add(node.id);
-      }
-    });
-    setFiniteNodes(finiteNodesSet);
+    // Initialize an empty set for finite nodes - the acceptance states
+    // are managed separately through the finiteNodes state
+    setFiniteNodes(new Set<string>());
   };
 
   // Function to test the current FSM against a test string
