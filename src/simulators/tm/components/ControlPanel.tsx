@@ -26,13 +26,26 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   tapes,
   onSave,
   isLoggedIn,
-  onClearCanvas
+  onClearCanvas,
+  problemMode
 }) => {
   const { theme } = useTheme();
   
   return (
     <DraggablePanel title="TM Control" defaultPosition={{ x: 20, y: 80 }}>
       <div className="space-y-4">
+        {/* Problem Mode Indicator */}
+        {problemMode && (
+          <div className="mb-4 py-2 px-3 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium">Problem Mode</span>
+            </div>
+          </div>
+        )}
+        
         <div className="space-y-2">
           <button
             onClick={onAddNode}
@@ -58,16 +71,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </button>
           )}
           
-          <button
-            onClick={onLoadJson}
-            className={`w-full font-semibold py-2 px-4 rounded ${
-              theme === 'dark'
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-purple-500 hover:bg-purple-600 text-white'
-            }`}
-          >
-            Load TM from JSON
-          </button>
+          {/* Only show Load JSON button if not in problem mode */}
+          {onLoadJson && !problemMode && (
+            <button
+              onClick={onLoadJson}
+              className={`w-full font-semibold py-2 px-4 rounded ${
+                theme === 'dark'
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : 'bg-purple-500 hover:bg-purple-600 text-white'
+              }`}
+            >
+              Load TM from JSON
+            </button>
+          )}
           
           <button
             onClick={onValidate}
@@ -80,7 +96,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             Validate TM
           </button>
           
-          {isLoggedIn && onSave && (
+          {/* Only show Save button if not in problem mode and is logged in */}
+          {isLoggedIn && onSave && !problemMode && (
             <button
               onClick={onSave}
               className={`w-full font-semibold py-2 px-4 rounded ${
@@ -105,86 +122,70 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </button>
         </div>
         
-        {/* TM Type Selection */}
-        <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            Turing Machine Type:
-          </label>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => onTapeModeChange('1-tape')}
-              disabled={isRunning || isRunningStepWise}
-              className={`flex-1 py-1 px-2 rounded text-sm ${
-                tapeMode === '1-tape'
-                  ? theme === 'dark'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-500 text-white'
-                  : theme === 'dark'
-                    ? 'bg-gray-700 text-gray-300'
-                    : 'bg-gray-200 text-gray-700'
-              } ${
-                (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
-              }`}
-            >
-              1-Tape
-            </button>
-            <button
-              onClick={() => onTapeModeChange('2-tape')}
-              disabled={isRunning || isRunningStepWise}
-              className={`flex-1 py-1 px-2 rounded text-sm ${
-                tapeMode === '2-tape'
-                  ? theme === 'dark'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-500 text-white'
-                  : theme === 'dark'
-                    ? 'bg-gray-700 text-gray-300'
-                    : 'bg-gray-200 text-gray-700'
-              } ${
-                (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
-              }`}
-            >
-              2-Tape
-            </button>
-            <button
-              onClick={() => onTapeModeChange('3-tape')}
-              disabled={isRunning || isRunningStepWise}
-              className={`flex-1 py-1 px-2 rounded text-sm ${
-                tapeMode === '3-tape'
-                  ? theme === 'dark'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-500 text-white'
-                  : theme === 'dark'
-                    ? 'bg-gray-700 text-gray-300'
-                    : 'bg-gray-200 text-gray-700'
-              } ${
-                (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
-              }`}
-            >
-              3-Tape
-            </button>
+        {/* Tape Mode Selection - hide in problem mode */}
+        {!problemMode && (
+          <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+              Tape Configuration
+            </label>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => onTapeModeChange('1-tape')}
+                className={`flex-1 py-1 px-2 text-sm rounded ${
+                  tapeMode === '1-tape'
+                    ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                    : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                }`}
+              >
+                1-Tape
+              </button>
+              <button
+                onClick={() => onTapeModeChange('2-tape')}
+                className={`flex-1 py-1 px-2 text-sm rounded ${
+                  tapeMode === '2-tape'
+                    ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                    : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                }`}
+              >
+                2-Tape
+              </button>
+              <button
+                onClick={() => onTapeModeChange('3-tape')}
+                className={`flex-1 py-1 px-2 text-sm rounded ${
+                  tapeMode === '3-tape'
+                    ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                    : theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                }`}
+              >
+                3-Tape
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         
-        <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-          <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-            Input String
-          </label>
-          <input
-            type="text"
-            placeholder="Enter String"
-            value={inputString}
-            maxLength={38}
-            readOnly={isRunning || isRunningStepWise}
-            onChange={(e) => onInputChange(e.target.value)}
-            className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              theme === 'dark'
-                ? 'bg-gray-700 border-gray-600 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
-            } ${
-              (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          />
-        </div>
+        {/* Only show input string section if not in problem mode */}
+        {!problemMode && (
+          <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+            <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+              Input String
+            </label>
+            <input
+              type="text"
+              placeholder="Enter String"
+              value={inputString}
+              maxLength={38}
+              readOnly={isRunning || isRunningStepWise}
+              onChange={(e) => onInputChange(e.target.value)}
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                theme === 'dark'
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              } ${
+                (isRunning || isRunningStepWise) ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            />
+          </div>
+        )}
         
         <div className="flex space-x-2 pt-2">
           <button

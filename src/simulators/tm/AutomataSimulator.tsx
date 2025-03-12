@@ -20,7 +20,8 @@ import {
   validateTM, 
   getNextConfiguration, 
   applyTransition, 
-  canTakeTransition 
+  canTakeTransition,
+  batchTestTM
 } from './utils/tmSerializer';
 import { useSearchParams } from 'next/navigation';
 import JsonInputDialog from './components/JsonInputDialog';
@@ -28,6 +29,7 @@ import { auth, getCurrentUser } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import SaveMachineToast from '../../app/components/SaveMachineToast';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import ProblemPanel from './components/ProblemPanel';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
@@ -40,9 +42,10 @@ const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
 
 interface TuringMachineSimulatorProps {
   initialTM?: string; // Optional JSON string to initialize the TM
+  problemId?: string; // Optional problem ID for problem panel
 }
 
-const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM }) => {
+const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, problemId }) => {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -798,6 +801,11 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
     return true;
   };
 
+  // Add a function to handle batch testing for problems
+  const handleTestSolution = (acceptStrings: string[], rejectStrings: string[]) => {
+    return batchTestTM(nodes, nodeMap, finiteNodes, acceptStrings, rejectStrings, tapeMode);
+  };
+
   if (!isClient) {
     return null; // Return null on server side to prevent hydration mismatch
   }
@@ -820,9 +828,9 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         onInputChange={(val) => setInputString(val)}
         onReset={resetSimulation}
         onToggleGrid={() => setShowGrid(!showGrid)}
-        onLoadJson={toggleJsonInput}
+        onLoadJson={problemId ? undefined : toggleJsonInput}
         onValidate={validateCurrentTM}
-        onSave={handleSave}
+        onSave={problemId ? undefined : handleSave}
         onClearCanvas={clearCanvas}
         inputString={inputString}
         validationResult={validationResult}
@@ -835,27 +843,35 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         onTapeModeChange={handleTapeModeChange}
         tapes={tapes}
         isLoggedIn={!!user}
+        problemMode={!!problemId}
       />
       
       <TMInfoPanel 
         states={nodes.map(node => node.id)} 
         initialState={nodes.length > 0 ? nodes[0].id : null}
         finalStates={Array.from(finiteNodes)}
-        inputSymbols={inputSymbols}
+        currentState={Array.from(currNodes)[0] || null}
         tapeSymbols={tapeSymbols}
-        currentState={Array.from(currNodes).join(', ')}
+        inputString={inputString}
         tapeMode={tapeMode}
       />
       
-      <TapePanel 
-        tapes={tapes} 
-        tapeMode={tapeMode}
-      />
+      {tapes.map((tape, index) => (
+        <TapePanel 
+          key={index}
+          tape={tape}
+          index={index}
+          tapeMode={tapeMode}
+          isRunning={isRunning}
+        />
+      ))}
       
-      <TestInputPanel 
-        onTestInput={handleTestInput} 
-        onShareTM={shareTM}
-      />
+      {!problemId && (
+        <TestInputPanel 
+          onTestInput={handleTestInput} 
+          onShareTM={shareTM}
+        />
+      )}
       
       <div 
         style={{ 
@@ -944,6 +960,14 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM })
         onClose={() => setShowSaveToast(false)}
         onSave={handleSaveMachine}
       />
+      
+      {/* Add the problem panel if a problem ID is provided */}
+      {problemId && (
+        <ProblemPanel
+          problemId={problemId}
+          onTestSolution={handleTestSolution}
+        />
+      )}
     </div>
   );
 };

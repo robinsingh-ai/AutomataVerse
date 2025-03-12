@@ -39,15 +39,12 @@ export default function LearnPage() {
         if (data.problems && Array.isArray(data.problems)) {
           setProblems(data.problems);
           
-          // Count the problems by type
-          const pdaCount = data.problems.filter((p: Problem) => p.type === 'pda').length;
-          
-          // Set problem counts
+          // Set problem counts from the API response
           setProblemCounts({
             dfa: data.types?.dfa || 0,
             nfa: data.types?.nfa || 0,
-            pda: pdaCount,
-            tm: 0
+            pda: data.types?.pda || 0,
+            tm: data.types?.tm || 0
           });
         } else {
           console.error('Invalid problems data structure:', data);
@@ -192,7 +189,7 @@ export default function LearnPage() {
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}
             >
-              TM Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-500 text-white">Coming Soon</span>
+              TM Problems <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-500 text-white">{problemCounts.tm}</span>
             </button>
           </div>
           
@@ -251,22 +248,30 @@ export default function LearnPage() {
                                     ? 'bg-teal-600' 
                                     : problem.type === 'nfa' 
                                       ? 'bg-purple-600' 
-                                      : 'bg-blue-600'} text-white hover:${
+                                      : problem.type === 'tm'
+                                        ? 'bg-red-600'
+                                        : 'bg-blue-600'} text-white hover:${
                                         problem.type === 'dfa' 
                                           ? 'bg-teal-700' 
                                           : problem.type === 'nfa' 
-                                            ? 'bg-purple-700' 
-                                            : 'bg-blue-700'}` 
+                                            ? 'bg-purple-700'
+                                            : problem.type === 'tm'
+                                              ? 'bg-red-700' 
+                                              : 'bg-blue-700'}` 
                                 : `${problem.type === 'dfa' 
                                     ? 'bg-teal-500' 
                                     : problem.type === 'nfa' 
-                                      ? 'bg-purple-500' 
-                                      : 'bg-blue-500'} text-white hover:${
+                                      ? 'bg-purple-500'
+                                      : problem.type === 'tm'
+                                        ? 'bg-red-500' 
+                                        : 'bg-blue-500'} text-white hover:${
                                         problem.type === 'dfa' 
                                           ? 'bg-teal-600' 
                                           : problem.type === 'nfa' 
-                                            ? 'bg-purple-600' 
-                                            : 'bg-blue-600'}`
+                                            ? 'bg-purple-600'
+                                            : problem.type === 'tm'
+                                              ? 'bg-red-600' 
+                                              : 'bg-blue-600'}`
                             }`}
                           >
                             Solve Problem
@@ -277,25 +282,14 @@ export default function LearnPage() {
                   ))}
                 </div>
               ) : (
-                <div className={`rounded-lg p-8 text-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  <h3 className="text-xl font-semibold mb-2">No matching problems found</h3>
-                  <p>Try adjusting your search or filter criteria</p>
+                <div className="text-center text-gray-500 py-12">
+                  No problems found
                 </div>
               )}
             </>
-          )}
-          
-          {!isLoading && (currentTab !== 'dfa' && currentTab !== 'nfa' && currentTab !== 'pda') && (
-            <div className={`rounded-lg p-12 text-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-              <h3 className="text-2xl font-semibold mb-2">Coming Soon!</h3>
-              <p className="text-lg mb-6">{currentTab.toUpperCase()} practice problems are under development</p>
-              <p className="text-gray-500 dark:text-gray-400">
-                We&apos;re working hard to create high-quality practice problems for Turing Machines. Check back soon!
-              </p>
-            </div>
           )}
         </div>
       </div>
     </div>
   );
-} 
+}

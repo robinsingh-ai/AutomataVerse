@@ -45,7 +45,7 @@ export interface ControlPanelProps {
   onInputChange: (value: string) => void;
   onReset: () => void;
   onToggleGrid: () => void;
-  onLoadJson: () => void;
+  onLoadJson?: () => void;
   onValidate: () => void;
   onSave?: () => void;
   onClearCanvas: () => void;
@@ -60,6 +60,7 @@ export interface ControlPanelProps {
   onTapeModeChange: (mode: TapeMode) => void;
   tapes: Tape[];
   isLoggedIn?: boolean;
+  problemMode?: boolean;
 }
 
 // Input Popup Props for TM

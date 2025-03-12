@@ -347,3 +347,139 @@ export const getNextConfiguration = (
     accepted: false
   };
 };
+
+/**
+ * Tests multiple strings against the TM and returns the results
+ */
+export function batchTestTM(
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  acceptStrings: string[],
+  rejectStrings: string[],
+  tapeMode: TapeMode
+): {
+  passed: boolean;
+  acceptResults: { string: string; accepted: boolean; expected: boolean }[];
+  rejectResults: { string: string; accepted: boolean; expected: boolean }[];
+  summary: string;
+} {
+  // Validate the TM first
+  const validation = validateTM(nodes, finalStates, tapeMode);
+  if (!validation.isValid) {
+    return {
+      passed: false,
+      acceptResults: [],
+      rejectResults: [],
+      summary: `Invalid Turing Machine: ${validation.errorMessage}`
+    };
+  }
+
+  // Test strings that should be accepted
+  const acceptResults = acceptStrings.map(str => {
+    const result = simulateTM(nodes, nodeMap, finalStates, str, tapeMode);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: true
+    };
+  });
+
+  // Test strings that should be rejected
+  const rejectResults = rejectStrings.map(str => {
+    const result = simulateTM(nodes, nodeMap, finalStates, str, tapeMode);
+    return {
+      string: str,
+      accepted: result.accepted,
+      expected: false
+    };
+  });
+
+  // Check if all tests passed
+  const allAccepted = acceptResults.every(r => r.accepted);
+  const allRejected = rejectResults.every(r => !r.accepted);
+  const passed = allAccepted && allRejected;
+
+  // Generate summary
+  let summary;
+  if (passed) {
+    summary = 'All tests passed! Your Turing Machine correctly accepts and rejects all test cases.';
+  } else {
+    const acceptedCount = acceptResults.filter(r => r.accepted).length;
+    const rejectedCount = rejectResults.filter(r => !r.accepted).length;
+    summary = `Tests failed. Your machine passed ${acceptedCount}/${acceptStrings.length} accept tests and ${rejectedCount}/${rejectStrings.length} reject tests.`;
+  }
+
+  return {
+    passed,
+    acceptResults,
+    rejectResults,
+    summary
+  };
+}
+
+/**
+ * Helper function to simulate a TM on a string without UI updates
+ */
+function simulateTM(
+  nodes: Node[],
+  nodeMap: Record<string, Node>,
+  finalStates: Set<string>,
+  input: string,
+  tapeMode: TapeMode
+): {
+  accepted: boolean;
+} {
+  if (nodes.length === 0) {
+    return { accepted: false };
+  }
+
+  // Initialize tapes
+  const numTapes = parseInt(tapeMode.charAt(0));
+  const tapes: Tape[] = [];
+  
+  for (let i = 0; i < numTapes; i++) {
+    const tape: Tape = { content: new Map(), headPosition: 0 };
+    
+    // Initialize the first tape with input
+    if (i === 0) {
+      for (let j = 0; j < input.length; j++) {
+        tape.content.set(j, input[j]);
+      }
+    }
+    
+    tapes.push(tape);
+  }
+
+  // Initialize state
+  let currentState: TMState = {
+    stateId: 'q0', // Assume q0 is the start state
+    tapes,
+    halted: false,
+    accepted: false
+  };
+
+  // Simulate up to a maximum number of steps (to prevent infinite loops)
+  const MAX_STEPS = 10000;
+  let steps = 0;
+
+  while (!currentState.halted && steps < MAX_STEPS) {
+    // Get next configuration
+    const nextState = getNextConfiguration(currentState, nodes, nodeMap);
+    
+    // If we can't transition, we're done
+    if (!nextState || nextState.halted) {
+      currentState = nextState || { ...currentState, halted: true };
+      break;
+    }
+    
+    // Update current state and continue
+    currentState = nextState;
+    steps++;
+  }
+
+  // Check if the machine accepted the input (in a final state)
+  return {
+    accepted: finalStates.has(currentState.stateId)
+  };
+}
