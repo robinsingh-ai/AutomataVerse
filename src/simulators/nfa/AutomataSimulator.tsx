@@ -584,7 +584,7 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
       }
       
       // Apply epsilon closure to next states (if allowed)
-      let statesAfterSymbol = new Set(nextStates);
+      const statesAfterSymbol = new Set(nextStates);
       
       // Add the step for processing input symbol
       simulationSteps.push({
@@ -959,7 +959,7 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
         allowEpsilon={allowEpsilon}
         onSave={handleSave}
         isLoggedIn={!!user}
-        problemMode={!!problemId}
+        isProblemMode={!!problemId}
       />
       
       <NFAInfoPanel 
