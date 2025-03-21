@@ -402,6 +402,26 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
     setSimulationResult({ accepted: false, message: "" });
   };
 
+  // Add the clearCanvas function here
+  // Clear the entire canvas, resetting all nodes and the simulation state
+  const clearCanvas = (): void => {
+    // First reset the simulation
+    resetSimulation();
+    
+    // Then clear all nodes, nodeMap and other state
+    setNodes([]);
+    setNodeMap({});
+    setSelectedNode(null);
+    setFiniteNodes(new Set<string>());
+    setInputString('');
+    
+    // Reset validation
+    setValidationResult(null);
+    
+    // Clear share URL
+    setShareUrl('');
+  };
+
   // Initialize the NFA simulation
   const initializeNFA = (input: string): NFAState => {
     let initialStates = new Set<string>(['q0']);
@@ -932,14 +952,14 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
         onToggleGrid={() => setShowGrid(!showGrid)}
         stepIndex={stepIndex}
         onReset={resetSimulation}
-        onLoadJson={isFromProblem ? undefined : toggleJsonInput}
+        onLoadJson={toggleJsonInput}
         onValidate={validateCurrentNFA}
+        onClearCanvas={clearCanvas}
         onToggleEpsilon={handleToggleEpsilon}
         allowEpsilon={allowEpsilon}
-        onSave={isFromProblem ? undefined : handleSave}
-        onClearCanvas={resetSimulation}
+        onSave={handleSave}
         isLoggedIn={!!user}
-        isProblemMode={isFromProblem}
+        problemMode={!!problemId}
       />
       
       <NFAInfoPanel 
