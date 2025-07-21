@@ -150,7 +150,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
   };
 
   return (
-    <nav className={`fixed top-0 left-0 w-full z-50 ${currentTheme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'} shadow-lg`}>
+    <nav className={`fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-white/30 dark:bg-gray-900/30 border-b border-white/20 dark:border-gray-800/40 shadow-md transition-colors duration-300 ${currentTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex-shrink-0 flex items-center">
