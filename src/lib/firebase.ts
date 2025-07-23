@@ -1,27 +1,24 @@
-// Import the functions you need from the SDKs you need
+// src/lib/firebase.ts
+
+import { getAnalytics } from "firebase/analytics";
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyBJH1i3GmDw1HOWwcWcgb6g93FEDPxQyKA",
+  authDomain: "refactor-122de.firebaseapp.com",
+  projectId: "refactor-122de",
+  storageBucket: "refactor-122de.appspot.com", // corrected the domain
+  messagingSenderId: "1011925911800",
+  appId: "1:1011925911800:web:b2137bf14519e419b2130d",
+  measurementId: "G-9XEQHY0WCN"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const analytics = getAnalytics(app);
 const auth = getAuth(app);
-const getCurrentUser = () => {
-  return getAuth(app).currentUser;
-};
+const db = getFirestore(app);
 
+export { analytics, app, auth, db };
 
-export { app, db, auth, getCurrentUser }; 
