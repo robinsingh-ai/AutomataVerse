@@ -1,31 +1,32 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Stage, Layer } from 'react-konva';
-import dynamic from 'next/dynamic';
-import ControlPanel from './components/ControlPanel';
-import InputPopup from './components/InputPopup';
-import StackPanel from './components/StackPanel';
-import { Node, NodeMap, HighlightedTransition, StageProps, PDAState, Stack } from './type';
+
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-import { useTheme } from '../../app/context/ThemeContext';
-import PDAInfoPanel from './components/PDAInfoPanel';
-import TestInputPanel from './components/TestInputPanel';
-import { 
-  deserializePDA,
-  encodePDAForURL, 
-  validatePDA, 
-  getNextConfigurations,
-  batchTestPDA
-} from './utils/pdaSerializer';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
-import JsonInputDialog from './components/JsonInputDialog';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { Layer, Stage } from 'react-konva';
+import SaveMachineToast from '../../app/components/SaveMachineToast';
+import { useTheme } from '../../app/context/ThemeContext';
 import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
-import SaveMachineToast from '../../app/components/SaveMachineToast';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import ControlPanel from './components/ControlPanel';
+import InputPopup from './components/InputPopup';
+import JsonInputDialog from './components/JsonInputDialog';
+import PDAInfoPanel from './components/PDAInfoPanel';
 import ProblemPanel from './components/ProblemPanel';
+import StackPanel from './components/StackPanel';
+import TestInputPanel from './components/TestInputPanel';
+import { HighlightedTransition, Node, NodeMap, PDAState, Stack, StageProps } from './type';
+import {
+  batchTestPDA,
+  deserializePDA,
+  encodePDAForURL,
+  getNextConfigurations,
+  validatePDA
+} from './utils/pdaSerializer';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
