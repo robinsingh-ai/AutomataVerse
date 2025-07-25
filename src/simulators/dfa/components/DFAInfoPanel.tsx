@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import DraggablePanel from './DraggablePanel';
+import DraggablePanel from '../../../shared/components/DraggablePanel';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 interface DFAInfoPanelProps {

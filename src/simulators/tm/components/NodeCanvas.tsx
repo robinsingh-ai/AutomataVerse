@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Circle, Arrow, Text, Shape, Group, Rect } from 'react-konva';
-import Grid from './Grid';
+import Grid from '../../../shared/components/Grid';
 import { NodeCanvasProps } from '../type';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';

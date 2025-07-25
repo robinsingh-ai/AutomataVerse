@@ -1,7 +1,7 @@
 'use client';
 
 import { ControlPanelProps } from '../type';
-import DraggablePanel from './DraggablePanel';
+import DraggablePanel from '../../../shared/components/DraggablePanel';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 const ControlPanel: React.FC<ControlPanelProps> = ({

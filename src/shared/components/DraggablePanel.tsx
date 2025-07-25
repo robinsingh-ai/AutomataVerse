@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useTheme } from '../../../app/context/ThemeContext';
+import { useTheme } from '../../app/context/ThemeContext';
 
 interface DraggablePanelProps {
   children: React.ReactNode;

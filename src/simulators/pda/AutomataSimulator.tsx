@@ -33,7 +33,7 @@ const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {
   ssr: false,
 });
 
-const DynamicGridCanvas = dynamic(() => import('./components/Grid'), {
+const DynamicGridCanvas = dynamic(() => import('../../shared/components/Grid'), {
   ssr: false,
 });
 

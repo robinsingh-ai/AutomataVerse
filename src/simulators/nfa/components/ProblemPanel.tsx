@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../../app/context/ThemeContext';
-import DraggablePanel from './DraggablePanel';
+import DraggablePanel from '../../../shared/components/DraggablePanel';
 import { NFA_PROBLEMS } from '../problemsets/problems';
 
 interface ProblemPanelProps {

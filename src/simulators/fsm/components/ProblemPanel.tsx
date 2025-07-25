@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DraggablePanel from './DraggablePanel';
+import DraggablePanel from '../../../shared/components/DraggablePanel';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { Problem } from '../problemsets/problems';
 import { NodeMap } from '../type';
