@@ -2,7 +2,18 @@
 
 import React from 'react';
 import { Line } from 'react-konva';
-import { GridProps } from '../type';
+
+// Grid component props interface
+interface GridProps {
+  size: number;
+  color: string;
+  stageProps: {
+    x: number;
+    y: number;
+    scale: number;
+    draggable: boolean;
+  };
+}
 
 const Grid: React.FC<GridProps> = ({ size, color, stageProps }) => {
   const lines = [];
