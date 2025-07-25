@@ -198,4 +198,88 @@ export const decodeDFAFromURL = (encodedDFA: string): SerializedDFA | null => {
     console.error('Error decoding DFA from URL:', error);
     return null;
   }
-}; 
+};
+
+/**
+ * Represents the current state of DFA execution
+ */
+export interface DFAState {
+  currentStates: Set<string>;
+  inputPosition: number;
+  isAccepted: boolean;
+  isCompleted: boolean;
+  remainingInput: string;
+  processedInput: string;
+}
+
+/**
+ * Tests a single input string against the DFA
+ */
+export const testDFA = (nodes: Node[], finalStates: Set<string>, input: string): DFAState => {
+  if (nodes.length === 0) {
+    return {
+      currentStates: new Set(),
+      inputPosition: 0,
+      isAccepted: false,
+      isCompleted: true,
+      remainingInput: input,
+      processedInput: ''
+    };
+  }
+
+  // Start from the first state (assuming it's the initial state)
+  const initialState = nodes[0].id;
+  let currentState = initialState;
+  let position = 0;
+
+  // Create transition lookup for efficiency
+  const transitionMap = new Map<string, string>();
+  nodes.forEach(node => {
+    node.transitions.forEach(transition => {
+      const symbols = transition.label.split(',').map(s => s.trim()).filter(s => s);
+      symbols.forEach(symbol => {
+        transitionMap.set(`${node.id},${symbol}`, transition.targetid);
+      });
+    });
+  });
+
+  // Process each input character
+  for (const char of input) {
+    const key = `${currentState},${char}`;
+    const nextState = transitionMap.get(key);
+    
+    if (!nextState) {
+      // No valid transition found - reject
+      return {
+        currentStates: new Set([currentState]),
+        inputPosition: position,
+        isAccepted: false,
+        isCompleted: true,
+        remainingInput: input.slice(position),
+        processedInput: input.slice(0, position)
+      };
+    }
+    
+    currentState = nextState;
+    position++;
+  }
+
+  // Check if final state is accepting
+  const isAccepted = finalStates.has(currentState);
+  
+  return {
+    currentStates: new Set([currentState]),
+    inputPosition: position,
+    isAccepted,
+    isCompleted: true,
+    remainingInput: '',
+    processedInput: input
+  };
+};
+
+/**
+ * Tests multiple input strings against the DFA
+ */
+export const batchTestDFA = (nodes: Node[], finalStates: Set<string>, inputs: string[]): DFAState[] => {
+  return inputs.map(input => testDFA(nodes, finalStates, input));
+};

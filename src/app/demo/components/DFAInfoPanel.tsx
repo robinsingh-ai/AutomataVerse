@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import DraggablePanel from './DraggablePanel';
+import DraggablePanel from '../../../shared/components/DraggablePanel';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 interface DFAInfoPanelProps {
@@ -20,7 +20,13 @@ const DFAInfoPanel: React.FC<DFAInfoPanelProps> = ({
   const { theme } = useTheme();
   
   return (
-    <DraggablePanel title="DFA Information" defaultPosition={{ x: 20, y: 380 }} width={250}>
+    <DraggablePanel 
+      title="DFA Information" 
+      defaultPosition={{ x: 300, y: 80 }} 
+      width={280}
+      dockPosition="right"
+      stackOrder={1}
+    >
       <div className="space-y-4">
         <div>
           <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

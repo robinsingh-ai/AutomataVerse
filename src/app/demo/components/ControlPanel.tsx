@@ -31,7 +31,12 @@ const ControlPanel: React.FC<ExtendedControlPanelProps> = ({
   const { theme } = useTheme();
   
   return (
-    <DraggablePanel title="DFA Controls" defaultPosition={{ x: 20, y: 80 }}>
+    <DraggablePanel 
+      title="DFA Controls" 
+      defaultPosition={{ x: 20, y: 80 }}
+      dockPosition="left"
+      stackOrder={0}
+    >
       <div className="space-y-4">
         <div className="space-y-3">
           <button

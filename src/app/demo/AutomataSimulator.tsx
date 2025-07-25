@@ -9,8 +9,11 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { Layer, Stage } from 'react-konva';
 import SaveMachineToast from '../components/SaveMachineToast';
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../context/ResponsiveContext';
 import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
+import { useTouchGestures } from '../../shared/hooks/useTouchGestures';
+import ResponsiveLayout from '../../shared/components/ResponsiveLayout';
 // Import shared components
 import InputPopup from '../../shared/components/InputPopup';
 import JsonInputDialog from '../../shared/components/JsonInputDialog';
@@ -46,6 +49,7 @@ interface AutomataSimulatorProps {
 
 const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => {
   const { theme } = useTheme();
+  const { isMobile, isTouch, screenWidth, screenHeight } = useResponsive();
   const searchParams = useSearchParams();
   
   // Authentication state
@@ -63,7 +67,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     x: 0,
     y: 0,
     scale: 1,
-    draggable: true
+    draggable: !isMobile // Disable dragging on mobile to allow touch gestures
   });
   
   const [stageDragging, setIsStageDragging] = useState<boolean>(false);
@@ -100,11 +104,38 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     if (typeof window !== 'undefined') {
       setStageProps(prev => ({
         ...prev,
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2
+        x: screenWidth / 2,
+        y: screenHeight / 2,
+        draggable: !isMobile
       }));
     }
-  }, []);
+  }, [screenWidth, screenHeight, isMobile]);
+
+  // Touch gesture handling for mobile
+  const touchGestures = useTouchGestures({
+    onUpdate: ({ scale, x, y }) => {
+      setStageProps(prev => ({
+        ...prev,
+        scale: Math.max(0.1, Math.min(3, scale)),
+        x,
+        y
+      }));
+    },
+    initialState: { scale: 1, x: screenWidth / 2, y: screenHeight / 2 },
+    minScale: 0.1,
+    maxScale: 3,
+    panEnabled: true,
+    zoomEnabled: true
+  });
+
+  // Attach touch gestures to stage container
+  useEffect(() => {
+    if (isTouch && stageRef.current) {
+      const container = stageRef.current.container();
+      const cleanup = touchGestures.attachToElement(container);
+      return cleanup;
+    }
+  }, [isTouch, touchGestures]);
 
   // Check for DFA in URL params when component mounts
   useEffect(() => {
@@ -385,8 +416,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
       return;
     }
 
-    const result = testDFA(nodes, nodeMap, finiteNodes, inputString);
-    setValidationResult(result.accepted ? 'String Accepted' : 'String Rejected');
+    const result = testDFA(nodes, finiteNodes, inputString);
+    setValidationResult(result.isAccepted ? 'String Accepted' : 'String Rejected');
     setIsRunning(false);
   };
 
@@ -443,8 +474,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
       return;
     }
 
-    const result = testDFA(nodes, nodeMap, finiteNodes, testInput);
-    setValidationResult(result.accepted ? 'String Accepted' : 'String Rejected');
+    const result = testDFA(nodes, finiteNodes, testInput);
+    setValidationResult(result.isAccepted ? 'String Accepted' : 'String Rejected');
     
     // Restore original input string
     setTimeout(() => setInputString(oldInputString), 100);
@@ -615,6 +646,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
     return true;
   };
 
+
   // Demo-specific functions for guided tour
   const handleStartTour = (): void => {
     setShowWelcomePanel(false);
@@ -635,14 +667,8 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
 
   const inputSymbols = getInputSymbols();
 
-  return (
-    <div 
-      className={`w-full h-full overflow-hidden relative
-        ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
-      style={{
-        cursor: stageProps.draggable && stageDragging ? 'grabbing' : stageProps.draggable ? 'grab' : 'default'
-      }}
-    >
+  const panels = (
+    <>
       <ControlPanel 
         onAddNode={handleAddNode}
         onSetFinite={handleSetFinite}
@@ -660,10 +686,6 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         onReset={resetSimulation}
         onLoadJson={toggleJsonInput}
         onValidate={validateCurrentDFA}
-        onSave={handleSave}
-        onClearCanvas={clearCanvas}
-        isLoggedIn={!!user}
-        isProblemMode={false}
         onStartTour={handleStartTour}
       />
       
@@ -672,9 +694,6 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         initialState={nodes.length > 0 ? nodes[0].id : null}
         finalStates={Array.from(finiteNodes)}
         inputSymbols={inputSymbols}
-        currentState={Array.from(currNodes)[0] || null}
-        currentPosition={currentConfiguration ? currentConfiguration.inputPosition : 0}
-        inputString={inputString}
       />
       
       <TestInputPanel 
@@ -682,8 +701,20 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         onTestInput={handleTestInput} 
         onShareMachine={shareDFA}
       />
+    </>
+  );
+
+  const mainContent = (
+    <div 
+      className={`w-full h-full overflow-hidden relative
+        ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
+      style={{
+        cursor: stageProps.draggable && stageDragging ? 'grabbing' : stageProps.draggable ? 'grab' : 'default'
+      }}
+    >
       
       <div 
+        className="canvas-container"
         style={{ 
           position: 'absolute', 
           top: 0, 
@@ -691,28 +722,26 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
           width: '100%', 
           height: '100%', 
           overflow: 'hidden',
-          touchAction: 'none'
+          touchAction: isMobile ? 'none' : 'auto'
         }}
       >
         <Stage
           ref={stageRef}
-          width={window.innerWidth}
-          height={window.innerHeight - 64}
+          width={screenWidth}
+          height={screenHeight - 64}
           className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}
           x={stageProps.x}
           y={stageProps.y}
-          draggable={stageProps.draggable}
+          draggable={stageProps.draggable && !isMobile}
           onClick={handleStageClick}
-          onDragMove={handleDragMoveScreen}
-          onWheel={handleWheel}
+          onDragMove={!isMobile ? handleDragMoveScreen : undefined}
+          onWheel={!isMobile ? handleWheel : undefined}
           onPointerDown={(event) => { 
-            if (event.evt.button === 1) setIsStageDragging(true); 
+            if (!isMobile && event.evt.button === 1) setIsStageDragging(true); 
           }}
           onPointerUp={(event) => { 
-            if (event.evt.button === 1) setIsStageDragging(false); 
+            if (!isMobile && event.evt.button === 1) setIsStageDragging(false); 
           }}
-          onTouchStart={() => setIsStageDragging(true)}
-          onTouchEnd={() => setIsStageDragging(false)}
           scaleX={stageProps.scale}
           scaleY={stageProps.scale}
         >
@@ -732,16 +761,15 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
               showGrid={showGrid}
               stageProps={stageProps}
               nodeMap={nodeMap}
-              highlightedTransitions={highlightedTransitions}
-              highlightedNodes={highlightedNodes}
+              highlightedTransition={highlightedTransitions[0] || {}}
               selectedNode={selectedNode}
               finiteNodes={finiteNodes}
-              currNodes={currNodes}
+              currNode={Array.from(currNodes)[0] ? nodeMap[Array.from(currNodes)[0]] : null}
               showQuestion={showQuestion}
               handleNodeClick={handleNodeClick}
               handleDragMove={handleDragMove}
-              nodeMouseDown={nodeMouseDown}
-              nodeMouseUp={nodeMouseUp}
+              nodeMouseDown={() => {}}
+              nodeMouseUp={() => {}}
             />
           </Layer>
         </Stage>
@@ -785,6 +813,12 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialDFA }) => 
         onComplete={handleCloseTour}
       />
     </div>
+  );
+
+  return (
+    <ResponsiveLayout mainContent={mainContent}>
+      {panels}
+    </ResponsiveLayout>
   );
 };
 

@@ -66,8 +66,10 @@ const TestInputPanel: React.FC<TestInputPanelProps> = ({
   return (
     <DraggablePanel 
       title={title || defaultTitle} 
-      defaultPosition={{ x: window.innerWidth - 270, y: 300 }}
+      defaultPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 270 : 600, y: 300 }}
       width={width}
+      dockPosition="right"
+      stackOrder={2}
     >
       <div className="space-y-3">
         {/* Input Form */}
