@@ -13,12 +13,15 @@ import { useTheme } from '../../app/context/ThemeContext';
 import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import ControlPanel from './components/ControlPanel';
-import InputPopup from './components/InputPopup';
-import JsonInputDialog from './components/JsonInputDialog';
 import PDAInfoPanel from './components/PDAInfoPanel';
-import ProblemPanel from './components/ProblemPanel';
 import StackPanel from './components/StackPanel';
-import TestInputPanel from './components/TestInputPanel';
+// Import generic components
+import InputPopup from '../../shared/components/InputPopup';
+import JsonInputDialog from '../../shared/components/JsonInputDialog';
+import ProblemPanel from '../../shared/components/ProblemPanel';
+import TestInputPanel from '../../shared/components/TestInputPanel';
+import { getFieldsForSimulator, formatTransitionValue } from '../../shared/configs/inputConfigs';
+import { PDA_PROBLEMS } from './problemsets/problems';
 import { HighlightedTransition, Node, NodeMap, PDAState, Stack, StageProps } from './type';
 import {
   batchTestPDA,
@@ -238,16 +241,11 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
     );
   };
 
-  const handleSymbolInputSubmit = (transitionInfo: string): void => {
+  const handleTransitionSubmit = (values: Record<string, string>): void => {
+    const transitionInfo = formatTransitionValue('PDA', values);
+    
     if (!transitionInfo) {
       console.warn("Invalid transition format");
-      return;
-    }
-    
-    // Verify transition format: "input,pop,push"
-    const parts = transitionInfo.split(',');
-    if (parts.length !== 3) {
-      console.warn("Invalid transition format. Expected format is 'input,pop,push'");
       return;
     }
     
@@ -942,8 +940,9 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
       
       {!problemId && (
         <TestInputPanel 
+          simulatorType="PDA"
           onTestInput={handleTestInput} 
-          onSharePDA={sharePDA}
+          onShareMachine={sharePDA}
         />
       )}
       
@@ -1015,7 +1014,9 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         <InputPopup
           isOpen={isPopupOpen}
           onClose={handleInputClose}
-          onSubmit={handleSymbolInputSubmit}
+          onSubmit={handleTransitionSubmit}
+          title="Add Transition"
+          fields={getFieldsForSimulator('PDA')}
         />
       )}
       
@@ -1023,8 +1024,9 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
         isOpen={jsonInputOpen}
         onClose={() => setJsonInputOpen(false)}
         onSubmit={handleJsonInputSubmit}
-        jsonInput={jsonInput}
-        setJsonInput={setJsonInput}
+        value={jsonInput}
+        onChange={setJsonInput}
+        simulatorType="PDA"
       />
       
       <SaveMachineToast
@@ -1034,9 +1036,10 @@ const AutomataSimulator: React.FC<PushdownAutomataSimulatorProps> = ({ initialPD
       />
       
       {/* Add the problem panel if a problem ID is provided */}
-      {problemId && (
+      {problemId && PDA_PROBLEMS[problemId] && (
         <ProblemPanel
-          problemId={problemId}
+          problem={PDA_PROBLEMS[problemId]}
+          simulatorType="PDA"
           onTestSolution={handleTestSolution}
         />
       )}

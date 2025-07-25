@@ -15,10 +15,13 @@ import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import ControlPanel from './components/ControlPanel';
 import DFAInfoPanel from './components/DFAInfoPanel';
-import InputPopup from './components/InputPopup';
-import JsonInputDialog from './components/JsonInputDialog';
-import ProblemPanel from './components/ProblemPanel';
-import TestInputPanel from './components/TestInputPanel';
+// Import generic components
+import InputPopup from '../../shared/components/InputPopup';
+import JsonInputDialog from '../../shared/components/JsonInputDialog';
+import ProblemPanel from '../../shared/components/ProblemPanel';
+import TestInputPanel from '../../shared/components/TestInputPanel';
+import { getFieldsForSimulator, formatTransitionValue } from '../../shared/configs/inputConfigs';
+import { DFA_PROBLEMS } from './problemsets/problems';
 import { DFAState, HighlightedTransition, Node, NodeMap, StageProps } from './type';
 import {
   batchTestDFA,
@@ -223,15 +226,11 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA, problemId 
     );
   };
 
-  const handleSymbolInputSubmit = (transitionInfo: string): void => {
+  const handleTransitionSubmit = (values: Record<string, string>): void => {
+    const transitionInfo = formatTransitionValue('DFA', values);
+    
     if (!transitionInfo) {
       console.warn("Invalid transition format");
-      return;
-    }
-    
-    // Verify transition format is a single input symbol 
-    if (transitionInfo.length === 0) {
-      console.warn("Transition must be a single input symbol");
       return;
     }
     
@@ -776,15 +775,17 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA, problemId 
       {/* Only show TestInputPanel in regular mode (not when solving a problem) */}
       {!isProblemMode && (
         <TestInputPanel 
+          simulatorType="DFA"
           onTestInput={handleTestInput} 
-          onShareDFA={shareDFA}
+          onShareMachine={shareDFA}
         />
       )}
       
       {/* Only show the problem panel if problem info is provided */}
-      {isProblemMode && (
+      {isProblemMode && problemId && DFA_PROBLEMS[problemId] && (
         <ProblemPanel 
-          problemId={problemId}
+          problem={DFA_PROBLEMS[problemId]}
+          simulatorType="DFA"
           onTestSolution={handleBatchTest}
         />
       )}
@@ -857,7 +858,9 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA, problemId 
         <InputPopup
           isOpen={isPopupOpen}
           onClose={handleInputClose}
-          onSubmit={handleSymbolInputSubmit}
+          onSubmit={handleTransitionSubmit}
+          title="Add Transition"
+          fields={getFieldsForSimulator('DFA')}
         />
       )}
       
@@ -865,8 +868,9 @@ const AutomataSimulator: React.FC<DFASimulatorProps> = ({ initialDFA, problemId 
         isOpen={jsonInputOpen}
         onClose={() => setJsonInputOpen(false)}
         onSubmit={handleJsonInputSubmit}
-        jsonInput={jsonInput}
-        setJsonInput={setJsonInput}
+        value={jsonInput}
+        onChange={setJsonInput}
+        simulatorType="DFA"
       />
       
       <SaveMachineToast

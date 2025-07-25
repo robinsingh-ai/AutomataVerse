@@ -15,13 +15,24 @@ import { useTheme } from '../../app/context/ThemeContext';
 import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import ControlPanel from './components/ControlPanel';
-import InputPopup from './components/InputPopup';
-import JsonInputDialog from './components/JsonInputDialog';
-import ProblemPanel from './components/ProblemPanel';
-import TMInfoPanel from './components/TMInfoPanel';
 import TapePanel from './components/TapePanel';
-import TestInputPanel from './components/TestInputPanel';
-import { HighlightedTransition, Node, NodeMap, StageProps, Tape, TapeMode, TMState } from './type';
+import TMInfoPanel from './components/TMInfoPanel';
+// Import generic components
+import InputPopup from '../../shared/components/InputPopup';
+import JsonInputDialog from '../../shared/components/JsonInputDialog';
+import ProblemPanel from '../../shared/components/ProblemPanel';
+import TestInputPanel from '../../shared/components/TestInputPanel';
+import { getFieldsForSimulator, formatTransitionValue } from '../../shared/configs/inputConfigs';
+import { TM_PROBLEMS } from './problemsets/problems';
+import {
+  Node,
+  NodeMap,
+  StageProps,
+  HighlightedTransition,
+  Tape,
+  TapeMode,
+  TMState
+} from './type';
 import {
   batchTestTM,
   deserializeTM,
@@ -253,33 +264,12 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, p
     );
   };
 
-  const handleSymbolInputSubmit = (transitionInfo: string): void => {
+  const handleTransitionSubmit = (values: Record<string, string>): void => {
+    const transitionInfo = formatTransitionValue('TM', values);
+    
     if (!transitionInfo) {
       console.warn("Invalid transition format");
       return;
-    }
-    
-    // For multi-tape TM, verify each tape transition part has 3 components
-    const tapeParts = transitionInfo.split(';');
-    
-    if (tapeParts.length !== (tapeMode === '1-tape' ? 1 : tapeMode === '2-tape' ? 2 : 3)) {
-      console.warn(`Expected ${tapeMode} transitions, got ${tapeParts.length}`);
-      return;
-    }
-    
-    for (const tapePart of tapeParts) {
-      const components = tapePart.split(',');
-      if (components.length !== 3) {
-        console.warn(`Invalid transition format: ${tapePart}. Expected format is "read,write,direction"`);
-        return;
-      }
-      
-      // Validate direction
-      const direction = components[2];
-      if (direction !== 'L' && direction !== 'R' && direction !== 'S') {
-        console.warn(`Invalid direction: ${direction}. Must be 'L', 'R', or 'S'`);
-        return;
-      }
     }
     
     if (!targetNode) {
@@ -867,8 +857,9 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, p
       
       {!problemId && (
         <TestInputPanel 
+          simulatorType="TM"
           onTestInput={handleTestInput} 
-          onShareTM={shareTM}
+          onShareMachine={shareTM}
         />
       )}
       
@@ -940,8 +931,9 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, p
         <InputPopup
           isOpen={isPopupOpen}
           onClose={handleInputClose}
-          onSubmit={handleSymbolInputSubmit}
-          tapeMode={tapeMode}
+          onSubmit={handleTransitionSubmit}
+          title="Add Transition"
+          fields={getFieldsForSimulator('TM')}
         />
       )}
       
@@ -949,8 +941,9 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, p
         isOpen={jsonInputOpen}
         onClose={() => setJsonInputOpen(false)}
         onSubmit={handleJsonInputSubmit}
-        jsonInput={jsonInput}
-        setJsonInput={setJsonInput}
+        value={jsonInput}
+        onChange={setJsonInput}
+        simulatorType="TM"
       />
       
       {/* Save machine toast/modal */}
@@ -961,9 +954,10 @@ const AutomataSimulator: React.FC<TuringMachineSimulatorProps> = ({ initialTM, p
       />
       
       {/* Add the problem panel if a problem ID is provided */}
-      {problemId && (
+      {problemId && TM_PROBLEMS[problemId] && (
         <ProblemPanel
-          problemId={problemId}
+          problem={TM_PROBLEMS[problemId]}
+          simulatorType="TM"
           onTestSolution={handleTestSolution}
         />
       )}

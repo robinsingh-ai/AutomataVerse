@@ -15,11 +15,13 @@ import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import ControlPanel from './components/ControlPanel';
 import FSMInfoPanel from './components/FSMInfoPanel';
-import InputPopup from './components/InputPopup';
-import JsonInputDialog from './components/JsonInputDialog';
 import OutputPanel from './components/OutputPanel';
-import ProblemPanel from './components/ProblemPanel';
-import TestInputPanel from './components/TestInputPanel';
+// Import generic components
+import InputPopup from '../../shared/components/InputPopup';
+import JsonInputDialog from '../../shared/components/JsonInputDialog';
+import ProblemPanel from '../../shared/components/ProblemPanel';
+import TestInputPanel from '../../shared/components/TestInputPanel';
+import { getFieldsForSimulator, formatTransitionValue } from '../../shared/configs/inputConfigs';
 import { FSMState, HighlightedTransition, MachineType, Node, NodeMap, StageProps, Transition } from './type';
 import {
   batchTestFSM,
@@ -276,7 +278,10 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
     );
   };
 
-  const handleSymbolInputSubmit = (inputSymbol: string, outputSymbol?: string): void => {
+  const handleTransitionSubmit = (values: Record<string, string>): void => {
+    const inputSymbol = values.input;
+    const outputSymbol = values.output;
+    
     if (!inputSymbol) {
       console.warn("Invalid input symbol");
       return;
@@ -698,6 +703,15 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
       handleRun();
     }, 100);
   };
+  
+  // For individual string testing
+  const handleSingleTest = (testString: string): string => {
+    if (!validateCurrentMachine()) {
+      return 'Invalid FSM';
+    }
+    
+    return testFSM(testString, nodeMap, finiteNodes, machineType);
+  };
 
   // Calculate all input and output symbols used in the machine
   const getSymbols = (): { inputAlphabet: string[], outputAlphabet: string[] } => {
@@ -837,29 +851,50 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
     setFiniteNodes(new Set<string>());
   };
 
-  // Function to test the current FSM against a test string
-  const testSolution = (testString: string): string => {
+  // Function to test the current FSM against accept/reject strings
+  const testSolution = (acceptStrings: string[], rejectStrings: string[]): any => {
     if (!validateCurrentMachine()) {
-      return 'Invalid FSM';
+      return {
+        passed: false,
+        acceptResults: [],
+        rejectResults: [],
+        summary: 'Invalid FSM'
+      };
     }
     
-    // Use the utility function to test the FSM
-    return testFSM(testString, nodeMap, finiteNodes, machineType);
-  };
-  
-  // Function to batch test the current FSM against all test cases
-  const batchTestSolution = () => {
-    if (!problem || !problem.testStrings) {
-      return { passed: 0, total: 0, results: [] };
-    }
+    const acceptResults = acceptStrings.map(str => {
+      const result = testFSM(str, nodeMap, finiteNodes, machineType);
+      const accepted = result === 'Accepted';
+      return {
+        string: str,
+        accepted,
+        expected: true
+      };
+    });
     
-    // Use the utility function to batch test the FSM
-    return batchTestFSM(
-      problem.testStrings as TestCase[],
-      nodeMap,
-      finiteNodes,
-      machineType
-    );
+    const rejectResults = rejectStrings.map(str => {
+      const result = testFSM(str, nodeMap, finiteNodes, machineType);
+      const accepted = result === 'Accepted';
+      return {
+        string: str,
+        accepted,
+        expected: false
+      };
+    });
+    
+    const acceptPassed = acceptResults.every(r => r.accepted === r.expected);
+    const rejectPassed = rejectResults.every(r => r.accepted === r.expected);
+    const passed = acceptPassed && rejectPassed;
+    
+    const passedCount = [...acceptResults, ...rejectResults].filter(r => r.accepted === r.expected).length;
+    const totalCount = acceptResults.length + rejectResults.length;
+    
+    return {
+      passed,
+      acceptResults,
+      rejectResults,
+      summary: `${passedCount}/${totalCount} tests passed`
+    };
   };
 
   if (!isClient) {
@@ -918,6 +953,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
         <TestInputPanel 
           onTestInput={handleTestInput} 
           onShareMachine={shareMachine}
+          simulatorType="FSM"
         />
       )}
       
@@ -925,8 +961,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
         <ProblemPanel
           problem={problem}
           onTestSolution={testSolution}
-          onBatchTest={batchTestSolution}
-          isLoading={isLoading}
+          simulatorType="FSM"
         />
       )}
       
@@ -997,25 +1032,31 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
       <InputPopup 
         isOpen={isPopupOpen}
         onClose={handleInputClose}
-        onSubmit={handleSymbolInputSubmit}
-        isMealyMachine={machineType === 'Mealy'}
+        onSubmit={handleTransitionSubmit}
+        title={machineType === 'Mealy' ? "Enter Transition Details" : "Enter Transition Input Symbol"}
+        fields={getFieldsForSimulator('FSM', machineType === 'Mealy')}
       />
       
       <InputPopup 
         isOpen={isOutputPopupOpen}
         onClose={handleOutputClose}
-        onSubmit={() => {}}
-        onOutputChange={handleOutputChange}
-        currentOutput={selectedNode?.output || ''}
-        isOutputPopup={true}
+        onSubmit={(values) => handleOutputChange(values.output)}
+        title="Enter State Output"
+        fields={[{
+          name: 'output',
+          label: 'Output Value',
+          placeholder: 'e.g., 0, 1, a, b',
+          required: true
+        }]}
       />
       
       <JsonInputDialog
         isOpen={jsonInputOpen}
         onClose={() => setJsonInputOpen(false)}
-        jsonInput={jsonInput}
-        setJsonInput={setJsonInput}
+        value={jsonInput}
+        onChange={setJsonInput}
         onSubmit={handleJsonInputSubmit}
+        simulatorType="FSM"
       />
       
       <SaveMachineToast

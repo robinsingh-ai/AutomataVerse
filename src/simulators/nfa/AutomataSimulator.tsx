@@ -14,11 +14,14 @@ import { useTheme } from '../../app/context/ThemeContext';
 import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
 import ControlPanel from './components/ControlPanel';
-import InputPopup from './components/InputPopup';
-import JsonInputDialog from './components/JsonInputDialog';
 import NFAInfoPanel from './components/NFAInfoPanel';
-import ProblemPanel from './components/ProblemPanel';
-import TestInputPanel from './components/TestInputPanel';
+// Import generic components
+import InputPopup from '../../shared/components/InputPopup';
+import JsonInputDialog from '../../shared/components/JsonInputDialog';
+import ProblemPanel from '../../shared/components/ProblemPanel';
+import TestInputPanel from '../../shared/components/TestInputPanel';
+import { getFieldsForSimulator, formatTransitionValue } from '../../shared/configs/inputConfigs';
+import { NFA_PROBLEMS } from './problemsets/problems';
 import { HighlightedTransition, NFAState, Node, NodeMap, StageProps } from './type';
 import {
   batchTestNFA,
@@ -261,15 +264,11 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
     );
   };
 
-  const handleSymbolInputSubmit = (transitionInfo: string): void => {
+  const handleTransitionSubmit = (values: Record<string, string>): void => {
+    const transitionInfo = formatTransitionValue('NFA', values);
+    
     if (!transitionInfo) {
       console.warn("Invalid transition format");
-      return;
-    }
-    
-    // Verify transition format for NFA
-    if (transitionInfo.length === 0) {
-      console.warn("Transition symbol cannot be empty");
       return;
     }
     
@@ -973,8 +972,9 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
       
       {testPanelVisible && (
         <TestInputPanel 
+          simulatorType="NFA"
           onTestInput={handleTestInput}
-          onShareNFA={shareNFA}
+          onShareMachine={shareNFA}
         />
       )}
       
@@ -1046,8 +1046,9 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
         <InputPopup
           isOpen={isPopupOpen}
           onClose={handleInputClose}
-          onSubmit={handleSymbolInputSubmit}
-          allowEpsilon={allowEpsilon}
+          onSubmit={handleTransitionSubmit}
+          title="Add Transition"
+          fields={getFieldsForSimulator('NFA')}
         />
       )}
       
@@ -1055,8 +1056,9 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
         isOpen={jsonInputOpen}
         onClose={() => setJsonInputOpen(false)}
         onSubmit={handleJsonInputSubmit}
-        jsonInput={jsonInput}
-        setJsonInput={setJsonInput}
+        value={jsonInput}
+        onChange={setJsonInput}
+        simulatorType="NFA"
       />
       
       <SaveMachineToast
@@ -1065,9 +1067,10 @@ const AutomataSimulator: React.FC<NFASimulatorProps> = ({ initialNFA, problemId 
         onSave={handleSaveMachine}
       />
       
-      {problemId && (
+      {problemId && NFA_PROBLEMS[problemId] && (
         <ProblemPanel
-          problemId={problemId}
+          problem={NFA_PROBLEMS[problemId]}
+          simulatorType="NFA"
           onTestSolution={handleBatchTest}
         />
       )}
