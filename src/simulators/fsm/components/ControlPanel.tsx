@@ -32,7 +32,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const isDark = theme === 'dark';
   
   return (
-    <DraggablePanel title="FSM Control" defaultPosition={{ x: 20, y: 80 }}>
+    <DraggablePanel title="FSM Control" defaultPosition={{ x: 20, y: 1300 }}>
       <div className="space-y-4">
         {/* Problem Mode Indicator */}
         {problemMode && (
