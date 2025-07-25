@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import DfaSimulator from "../../../simulators/dfa/AutomataSimulator";
@@ -9,7 +9,31 @@ import PdaSimulator from "../../../simulators/pda/AutomataSimulator";
 import FsmSimulator from "../../../simulators/fsm/AutomataSimulator";
 import TMSimulator from "../../../simulators/tm/AutomataSimulator";
 
-const SimulatorTabsPage = () => {
+// Loading component for Suspense fallback
+const TabsLoading = () => (
+  <div className="flex flex-col h-full w-full bg-white dark:bg-slate-900">
+    <div className="relative bg-slate-800 border-b border-slate-700">
+      <div className="h-10 bg-gradient-to-b from-white to-white dark:from-slate-800 dark:to-slate-800 relative overflow-hidden">
+        <div className="flex h-full relative">
+          {["DFA", "NFA", "PDA", "FSM", "TM"].map((tab) => (
+            <div key={tab} className="relative group" style={{ zIndex: 5 }}>
+              <div className="relative h-full flex items-center justify-center transition-all duration-200 ease-out border-l border-r border-slate-600/50 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300" style={{ minWidth: '120px' }}>
+                <div className="w-3 h-3 rounded-full bg-gray-400 mr-3 shadow-sm animate-pulse" />
+                <span className="font-medium text-sm tracking-wide">{tab}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent" />
+    </div>
+    <div className="flex-grow bg-white dark:bg-slate-900 relative overflow-hidden flex items-center justify-center">
+      <div className="text-gray-500 dark:text-slate-400 animate-pulse">Loading simulator...</div>
+    </div>
+  </div>
+);
+
+const SimulatorTabsContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -150,6 +174,15 @@ const SimulatorTabsPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// Main page component with Suspense boundary
+const SimulatorTabsPage = () => {
+  return (
+    <Suspense fallback={<TabsLoading />}>
+      <SimulatorTabsContent />
+    </Suspense>
   );
 };
 
