@@ -31,7 +31,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const isDark = theme === 'dark';
   
   return (
-    <DraggablePanel title="PDA Control" defaultPosition={{ x: 20, y: 80 }}>
+    <DraggablePanel title="PDA Control" defaultPosition={{ x: 20, y: 130 }}>
       <div className="space-y-4">
         {/* Problem Mode Indicator */}
         {problemMode && (
