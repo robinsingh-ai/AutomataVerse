@@ -59,27 +59,35 @@ const JsonInputDialog: React.FC<JsonInputDialogProps> = ({
           </p>
         </div>
         
-        <div className="flex gap-2 justify-end">
+        <div className={`flex gap-2 justify-end pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           <button
             onClick={onClose}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
+            className={`flex items-center justify-center gap-2 py-2 px-4 rounded transition-colors ${
               isDark
-                ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-gray-800 hover:bg-gray-700 text-red-400 hover:text-red-300'
+                : 'bg-white hover:bg-gray-100 text-red-600 hover:text-red-700 border border-gray-300'
             }`}
           >
-            Cancel
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Cancel</span>
           </button>
           <button
             onClick={onSubmit}
             disabled={!value.trim()}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
+            className={`flex items-center justify-center gap-2 py-2 px-4 rounded transition-colors ${
               !value.trim()
-                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
+                ? `${isDark ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'} cursor-not-allowed`
+                : isDark
+                  ? 'bg-gray-800 hover:bg-gray-700 text-purple-400 hover:text-purple-300'
+                  : 'bg-white hover:bg-gray-100 text-purple-600 hover:text-purple-700 border border-gray-300'
             }`}
           >
-            Load {simulatorType}
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span>Load {simulatorType}</span>
           </button>
         </div>
       </div>

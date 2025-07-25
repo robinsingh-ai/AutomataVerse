@@ -171,32 +171,32 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
           </div>
 
           {/* Test Button */}
-          <div className="pt-4">
+          <div className={`pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <button
               onClick={handleTestSolution}
               disabled={isLoading}
-              className={`w-full py-3 px-4 rounded font-medium transition-colors ${
+              className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded transition-colors ${
                 isLoading
-                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  ? `${isDark ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'} cursor-not-allowed`
                   : isDark
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-green-500 text-white hover:bg-green-600'
-              } flex items-center justify-center gap-2`}
+                    ? 'bg-gray-800 hover:bg-gray-700 text-green-400 hover:text-green-300'
+                    : 'bg-white hover:bg-gray-100 text-green-600 hover:text-green-700 border border-gray-300'
+              }`}
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Testing...
+                  <span>Testing...</span>
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Test Your Solution
+                  <span>Test Your Solution</span>
                 </>
               )}
             </button>
