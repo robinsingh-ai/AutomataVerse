@@ -1,30 +1,32 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Stage, Layer } from 'react-konva';
-import dynamic from 'next/dynamic';
-import ControlPanel from './components/ControlPanel';
-import InputPopup from './components/InputPopup';
-import DFAInfoPanel from './components/DFAInfoPanel';
-import { Node, NodeMap, HighlightedTransition, StageProps, DFAState } from './type';
+
+
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-import { useTheme } from '../../app/context/ThemeContext';
-import TestInputPanel from './components/TestInputPanel';
-import { 
-  deserializeDFA, 
-  encodeDFAForURL, 
-  validateDFA, 
-  getNextConfiguration,
-  batchTestDFA
-} from './utils/dfaSerializer';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
-import JsonInputDialog from './components/JsonInputDialog';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { Layer, Stage } from 'react-konva';
+import SaveMachineToast from '../../app/components/SaveMachineToast';
+import { useTheme } from '../../app/context/ThemeContext';
 import { auth } from '../../lib/firebase';
 import { saveMachine } from '../../lib/machineService';
-import SaveMachineToast from '../../app/components/SaveMachineToast';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import ControlPanel from './components/ControlPanel';
+import DFAInfoPanel from './components/DFAInfoPanel';
+import InputPopup from './components/InputPopup';
+import JsonInputDialog from './components/JsonInputDialog';
 import ProblemPanel from './components/ProblemPanel';
+import TestInputPanel from './components/TestInputPanel';
+import { DFAState, HighlightedTransition, Node, NodeMap, StageProps } from './type';
+import {
+  batchTestDFA,
+  deserializeDFA,
+  encodeDFAForURL,
+  getNextConfiguration,
+  validateDFA
+} from './utils/dfaSerializer';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {

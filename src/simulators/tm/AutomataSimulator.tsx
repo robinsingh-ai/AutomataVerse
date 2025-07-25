@@ -1,35 +1,34 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Stage, Layer } from 'react-konva';
-import dynamic from 'next/dynamic';
-import ControlPanel from './components/ControlPanel';
-import InputPopup from './components/InputPopup';
-import TapePanel from './components/TapePanel';
-import { Node, NodeMap, HighlightedTransition, StageProps, TMState, Tape, TapeMode } from './type';
+
+
+
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-import { useTheme } from '../../app/context/ThemeContext';
-import TMInfoPanel from './components/TMInfoPanel';
-import TestInputPanel from './components/TestInputPanel';
-import { 
-  deserializeTM, 
-  SerializedTM, 
-  serializeTM, 
-  encodeTMForURL, 
-  validateTM, 
-  getNextConfiguration, 
-  applyTransition, 
-  canTakeTransition,
-  batchTestTM
-} from './utils/tmSerializer';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
-import JsonInputDialog from './components/JsonInputDialog';
-import { auth, getCurrentUser } from '../../lib/firebase';
-import { saveMachine } from '../../lib/machineService';
-import SaveMachineToast from '../../app/components/SaveMachineToast';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { Layer, Stage } from 'react-konva';
+import SaveMachineToast from '../../app/components/SaveMachineToast';
+import { useTheme } from '../../app/context/ThemeContext';
+import { auth } from '../../lib/firebase';
+import { saveMachine } from '../../lib/machineService';
+import ControlPanel from './components/ControlPanel';
+import InputPopup from './components/InputPopup';
+import JsonInputDialog from './components/JsonInputDialog';
 import ProblemPanel from './components/ProblemPanel';
+import TMInfoPanel from './components/TMInfoPanel';
+import TapePanel from './components/TapePanel';
+import TestInputPanel from './components/TestInputPanel';
+import { HighlightedTransition, Node, NodeMap, StageProps, Tape, TapeMode, TMState } from './type';
+import {
+  batchTestTM,
+  deserializeTM,
+  encodeTMForURL,
+  getNextConfiguration,
+  validateTM
+} from './utils/tmSerializer';
 
 // Dynamically import the NodeCanvas component to prevent SSR issues with Konva
 const DynamicNodeCanvas = dynamic(() => import('./components/NodeCanvas'), {

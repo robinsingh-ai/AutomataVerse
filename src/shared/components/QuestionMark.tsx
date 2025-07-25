@@ -1,8 +1,9 @@
 'use client';
+import { useTheme } from '../../app/context/ThemeContext';
+
 
 import React from 'react';
-import { Text, Circle, Group } from 'react-konva';
-import { useTheme } from '../../../app/context/ThemeContext';
+import { Circle, Group, Text } from 'react-konva';
 
 const QuestionMark: React.FC = () => {
   const { theme } = useTheme();
