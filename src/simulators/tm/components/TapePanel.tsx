@@ -72,10 +72,10 @@ const TapePanel: React.FC<TapePanelProps> = ({ tape, index, tapeMode, isRunning 
     <DraggablePanel 
       title={`Tape #${index + 1}`} 
       defaultPosition={{ 
-        x: window.innerWidth - 340, 
-        y: 80 + (index * 240) 
+        x: window.innerWidth - 300, 
+        y: 80 + (index * 200) 
       }} 
-      width={320}
+      width={280}
     >
       <div className="space-y-2">
         {renderTape()}

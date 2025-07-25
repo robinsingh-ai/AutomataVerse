@@ -31,7 +31,7 @@ const InputPopup: React.FC<InputPopupProps> = ({
   title,
   fields,
   submitLabel = "Add",
-  width = 400
+  width = 320
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';

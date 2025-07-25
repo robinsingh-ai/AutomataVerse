@@ -34,7 +34,7 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
   simulatorType,
   onTestSolution,
   onClose,
-  width = 450
+  width = 380
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -82,7 +82,7 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
   return (
     <DraggablePanel 
       title={`${simulatorType} Problem: ${problem.title}`} 
-      defaultPosition={{ x: 50, y: 100 }} 
+      defaultPosition={{ x: window.innerWidth - 400, y: 400 }}
       width={width}
     >
       <div className={`${isDark ? 'text-white' : 'text-gray-800'} max-h-[600px] overflow-y-auto`}>

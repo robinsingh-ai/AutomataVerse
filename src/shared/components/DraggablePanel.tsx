@@ -14,7 +14,7 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
   children,
   title,
   defaultPosition = { x: 20, y: 80 },
-  width = 300
+  width = 250
 }) => {
   const [position, setPosition] = useState(defaultPosition);
   const [isDragging, setIsDragging] = useState(false);
@@ -119,7 +119,7 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
         </div>
       </div>
       
-      <div className={`panel-content ${isMinimized ? 'hidden' : 'block'} p-4`}>
+      <div className={`panel-content ${isMinimized ? 'hidden' : 'block'} p-3`}>
         {children}
       </div>
     </div>

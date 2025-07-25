@@ -28,7 +28,7 @@ const PDAInfoPanel: React.FC<PDAInfoPanelProps> = ({
   const { theme } = useTheme();
   
   return (
-    <DraggablePanel title="Pushdown Automaton Information" defaultPosition={{ x: 20, y: 380 }} width={280}>
+    <DraggablePanel title="PDA Information" defaultPosition={{ x: 20, y: 350 }} width={250}>
       <div className="space-y-4">
         <div>
           <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

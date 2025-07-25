@@ -22,9 +22,9 @@ const OutputPanel: React.FC<OutputPanelProps> = ({
   
   return (
     <DraggablePanel 
-      title={`${machineType} Machine Output`} 
-      defaultPosition={{ x: window.innerWidth - 340, y: 80 }} 
-      width={320}
+      title={`Output (${machineType} Machine)`} 
+      defaultPosition={{ x: window.innerWidth - 240, y: 80 }} 
+      width={220}
     >
       <div className="space-y-4">
         {/* Input string display - only show if inputString is provided */}

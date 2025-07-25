@@ -32,11 +32,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   
   return (
     <DraggablePanel title="DFA Control" defaultPosition={{ x: 20, y: 80 }}>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Problem Mode Indicator */}
         {isProblemMode && (
-          <div className="mb-4 flex items-center gap-2 py-2 px-3 bg-opacity-10 bg-blue-500 dark:bg-opacity-20 rounded">
-            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-3 flex items-center gap-2 py-1.5 px-2 bg-opacity-10 bg-blue-500 dark:bg-opacity-20 rounded text-sm">
+            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className={`font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Problem Mode</span>
@@ -44,10 +44,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         )}
         
         {/* SECTION 1: Basic State Controls */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <button
             onClick={onAddNode}
-            className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded transition-colors ${
+            className={`w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded transition-colors text-sm ${
               isDark 
                 ? 'bg-gray-800 hover:bg-gray-700 text-white' 
                 : 'bg-white hover:bg-gray-100 text-gray-800 border border-gray-300'

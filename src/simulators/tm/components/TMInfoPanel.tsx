@@ -27,7 +27,7 @@ const TMInfoPanel: React.FC<TMInfoPanelProps> = ({
   const { theme } = useTheme();
   
   return (
-    <DraggablePanel title="TM Information" defaultPosition={{ x: 20, y: 380 }} width={250}>
+    <DraggablePanel title="TM Information" defaultPosition={{ x: 20, y: 350 }} width={250}>
       <div className="space-y-4">
         <div>
           <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

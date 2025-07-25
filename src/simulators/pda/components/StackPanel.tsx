@@ -13,7 +13,7 @@ const StackPanel: React.FC<StackPanelProps> = ({ stack }) => {
   const { theme } = useTheme();
   
   return (
-    <DraggablePanel title="Stack" defaultPosition={{ x: window.innerWidth - 340, y: 80 }} width={320}>
+    <DraggablePanel title="Stack" defaultPosition={{ x: window.innerWidth - 200, y: 80 }} width={180}>
       <div className="space-y-2">
         <h3 className={`text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
           Current Stack (top to bottom):

@@ -29,7 +29,7 @@ const TestInputPanel: React.FC<TestInputPanelProps> = ({
   onShareMachine,
   disabled = false,
   title,
-  width = 300
+  width = 250
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -66,12 +66,12 @@ const TestInputPanel: React.FC<TestInputPanelProps> = ({
   return (
     <DraggablePanel 
       title={title || defaultTitle} 
-      defaultPosition={{ x: 20, y: 400 }} 
+      defaultPosition={{ x: window.innerWidth - 270, y: 300 }}
       width={width}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Input Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-2">
           <div>
             <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               <div className="flex items-center gap-1.5">

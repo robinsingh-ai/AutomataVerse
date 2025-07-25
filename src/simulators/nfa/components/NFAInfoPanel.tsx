@@ -28,7 +28,7 @@ const NFAInfoPanel: React.FC<NFAInfoPanelProps> = ({
   const { theme } = useTheme();
   
   return (
-    <DraggablePanel title="Nondeterministic Finite Automaton Information" defaultPosition={{ x: 20, y: 380 }} width={320}>
+    <DraggablePanel title="NFA Information" defaultPosition={{ x: 20, y: 350 }} width={260}>
       <div className="space-y-4">
         <div>
           <h3 className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

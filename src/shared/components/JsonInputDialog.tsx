@@ -37,7 +37,7 @@ const JsonInputDialog: React.FC<JsonInputDialogProps> = ({
     <DraggablePanel 
       title={title || defaultTitle} 
       defaultPosition={{ x: 100, y: 100 }} 
-      width={500}
+      width={420}
     >
       <div className="space-y-4">
         <div>
