@@ -84,26 +84,44 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
   return (
     <div 
       ref={panelRef}
-      className={`fixed z-30 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} 
-      ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} 
-      shadow-lg rounded-lg overflow-hidden`}
+      className={`fixed z-50 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}
+      ${theme === 'dark' 
+        ? 'bg-gradient-dark-secondary border border-dark-border shadow-dark-lg' 
+        : 'bg-gradient-light-primary border border-light-border shadow-lg'
+      } 
+      rounded-xl overflow-hidden backdrop-blur-sm transition-all duration-300 ease-out
+      ${isDragging ? 'scale-105' : 'hover:shadow-xl'}
+      animate-fade-in glass-panel`}
       style={{ 
         width: `${width}px`, 
         left: `${position.x}px`, 
         top: `${position.y}px`,
-        transition: isDragging ? 'none' : 'all 0.2s ease',
+        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        background: theme === 'dark' 
+          ? 'linear-gradient(135deg, rgba(26, 29, 35, 0.95) 0%, rgba(37, 42, 50, 0.95) 100%)'
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%)',
       }}
       onMouseDown={handleMouseDown}
     >
       <div 
-        className={`panel-header flex items-center justify-between px-4 py-2 
-        ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}
+        className={`panel-header flex items-center justify-between px-4 py-3
+        ${theme === 'dark' 
+          ? 'bg-gradient-dark-tertiary border-b border-dark-border' 
+          : 'bg-gradient-light-secondary border-b border-light-border'
+        } transition-colors duration-300`}
       >
-        <h3 className="font-semibold truncate">{title}</h3>
-        <div className="flex space-x-2">
+        <h3 className={`font-semibold truncate text-sm
+          ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
+          {title}
+        </h3>
+        <div className="flex space-x-1">
           <button 
             onClick={() => setIsMinimized(!isMinimized)}
-            className="p-1 rounded hover:bg-gray-600 hover:text-white transition-colors"
+            className={`p-2 rounded-lg transition-all duration-200 btn-enhanced focus-ring
+              ${theme === 'dark'
+                ? 'hover:bg-dark-accent text-dark-text-secondary hover:text-dark-text-primary'
+                : 'hover:bg-light-accent text-light-text-secondary hover:text-light-text-primary'
+              }`}
             aria-label={isMinimized ? "Maximize" : "Minimize"}
           >
             {isMinimized ? (
@@ -119,7 +137,9 @@ const DraggablePanel: React.FC<DraggablePanelProps> = ({
         </div>
       </div>
       
-      <div className={`panel-content ${isMinimized ? 'hidden' : 'block'} p-3`}>
+      <div className={`panel-content ${isMinimized ? 'hidden' : 'block'} p-4 
+        ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'}
+        transition-all duration-300 animate-slide-up`}>
         {children}
       </div>
     </div>

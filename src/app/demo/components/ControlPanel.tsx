@@ -1,7 +1,7 @@
 'use client';
 
 import { ControlPanelProps } from '../type';
-import DraggablePanel from './DraggablePanel';
+import DraggablePanel from '../../../shared/components/DraggablePanel';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 // Extended ControlPanelProps to include tour functionality
@@ -33,16 +33,19 @@ const ControlPanel: React.FC<ExtendedControlPanelProps> = ({
   return (
     <DraggablePanel title="DFA Controls" defaultPosition={{ x: 20, y: 80 }}>
       <div className="space-y-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <button
             onClick={onAddNode}
-            className={`w-full font-semibold py-2 px-4 rounded ${
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all duration-300 btn-enhanced focus-ring card-hover ${
               theme === 'dark' 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white shadow-dark-md hover:shadow-dark-lg' 
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white shadow-md hover:shadow-lg'
             }`}
           >
-            Add Node
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add State
           </button>
           
           {selectedNode && (
