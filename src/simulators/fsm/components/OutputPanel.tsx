@@ -23,7 +23,7 @@ const OutputPanel: React.FC<OutputPanelProps> = ({
   return (
     <DraggablePanel 
       title={`Output (${machineType} Machine)`} 
-      defaultPosition={{ x: window.innerWidth - 240, y: 80 }} 
+      defaultPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 270 : 800, y: 80 }} 
       width={220}
     >
       <div className="space-y-4">
