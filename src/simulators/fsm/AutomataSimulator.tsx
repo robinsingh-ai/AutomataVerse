@@ -851,7 +851,7 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
     setFiniteNodes(new Set<string>());
   };
 
-  // Function to test the current FSM against accept/reject strings
+  // Function to test the current FSM against test cases
   const testSolution = (acceptStrings: string[], rejectStrings: string[]): any => {
     if (!validateCurrentMachine()) {
       return {
@@ -862,6 +862,85 @@ const AutomataSimulator: React.FC<AutomataSimulatorProps> = ({ initialMachine, p
       };
     }
     
+    // For FSM problems, we need to check output sequences, not just acceptance
+    if (problem && problem.testStrings) {
+      const testResults = problem.testStrings.map((testCase: { input: string; expectedOutput: string }, idx: number) => {
+        try {
+          // Simulate the FSM to get the output sequence
+          const initialState = 'q0';
+          let currentStateId = initialState;
+          let outputSequence: string[] = [];
+          
+          // For Moore machines, add initial state output
+          if (machineType === 'Moore' && nodeMap[currentStateId]) {
+            outputSequence.push(nodeMap[currentStateId].output || '');
+          }
+          
+          // Process each input symbol
+          for (let i = 0; i < testCase.input.length; i++) {
+            const symbol = testCase.input[i];
+            const currentNode = nodeMap[currentStateId];
+            
+            if (!currentNode) {
+              throw new Error(`State ${currentStateId} not found`);
+            }
+            
+            // Find transition for this input symbol
+            const transition = currentNode.transitions.find(t => t.inputSymbol === symbol);
+            
+            if (!transition) {
+              throw new Error(`No transition found for symbol '${symbol}' from state ${currentStateId}`);
+            }
+            
+            // For Mealy machines, add transition output
+            if (machineType === 'Mealy' && transition.outputSymbol) {
+              outputSequence.push(transition.outputSymbol);
+            }
+            
+            // Move to next state
+            currentStateId = transition.targetid;
+            
+            // For Moore machines, add state output after transition
+            if (machineType === 'Moore' && nodeMap[currentStateId] && i < testCase.input.length - 1) {
+              outputSequence.push(nodeMap[currentStateId].output || '');
+            }
+          }
+          
+          // Get the final output
+          const actualOutput = outputSequence.join('');
+          const expected = testCase.expectedOutput;
+          const passed = actualOutput === expected;
+          
+          return {
+            string: testCase.input,
+            accepted: passed,
+            expected: true,
+            actualOutput,
+            expectedOutput: expected
+          };
+        } catch (error) {
+          return {
+            string: testCase.input,
+            accepted: false,
+            expected: true,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
+      });
+      
+      const passedCount = testResults.filter((r: any) => r.accepted).length;
+      const totalCount = testResults.length;
+      const passed = passedCount === totalCount;
+      
+      return {
+        passed,
+        acceptResults: testResults,
+        rejectResults: [],
+        summary: `${passedCount}/${totalCount} test cases passed`
+      };
+    }
+    
+    // Fallback to traditional accept/reject testing for other problem types
     const acceptResults = acceptStrings.map(str => {
       const result = testFSM(str, nodeMap, finiteNodes, machineType);
       const accepted = result === 'Accepted';

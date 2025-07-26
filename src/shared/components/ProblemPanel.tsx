@@ -8,16 +8,31 @@ export interface Problem {
   id: string;
   title: string;
   description: string;
-  accept: string[];
-  reject: string[];
-  difficulty: 'Easy' | 'Medium' | 'Hard';
+  accept?: string[];
+  reject?: string[];
+  testStrings?: { input: string; expectedOutput: string }[];
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'easy' | 'medium' | 'hard';
   instructions?: string;
 }
 
 export interface TestResult {
   passed: boolean;
-  acceptResults: { string: string; accepted: boolean; expected: boolean }[];
-  rejectResults: { string: string; accepted: boolean; expected: boolean }[];
+  acceptResults: { 
+    string: string; 
+    accepted: boolean; 
+    expected: boolean;
+    actualOutput?: string;
+    expectedOutput?: string;
+    error?: string;
+  }[];
+  rejectResults: { 
+    string: string; 
+    accepted: boolean; 
+    expected: boolean;
+    actualOutput?: string;
+    expectedOutput?: string;
+    error?: string;
+  }[];
   summary: string;
 }
 
@@ -44,22 +59,39 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
   const handleTestSolution = async () => {
     setIsLoading(true);
     try {
-      const testResults = onTestSolution(problem.accept, problem.reject);
+      let testResults;
+      if (problem.accept && problem.reject) {
+        // Traditional accept/reject format (DFA, NFA, PDA, TM)
+        testResults = onTestSolution(problem.accept, problem.reject);
+      } else if (problem.testStrings) {
+        // FSM testStrings format
+        const acceptStrings = problem.testStrings.map(test => test.input);
+        const rejectStrings: string[] = []; // FSM problems don't have reject strings
+        testResults = onTestSolution(acceptStrings, rejectStrings);
+      } else {
+        throw new Error('Invalid problem format');
+      }
       setResults(testResults);
     } catch (error) {
       console.error('Error testing solution:', error);
+      setResults({
+        passed: false,
+        acceptResults: [],
+        rejectResults: [],
+        summary: 'Error testing solution'
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy':
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
         return isDark ? 'text-green-400' : 'text-green-600';
-      case 'Medium':
+      case 'medium':
         return isDark ? 'text-yellow-400' : 'text-yellow-600';
-      case 'Hard':
+      case 'hard':
         return isDark ? 'text-red-400' : 'text-red-600';
       default:
         return isDark ? 'text-gray-400' : 'text-gray-600';
@@ -67,12 +99,12 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
   };
 
   const getDifficultyBg = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy':
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
         return isDark ? 'bg-green-900/20' : 'bg-green-100';
-      case 'Medium':
+      case 'medium':
         return isDark ? 'bg-yellow-900/20' : 'bg-yellow-100';
-      case 'Hard':
+      case 'hard':
         return isDark ? 'bg-red-900/20' : 'bg-red-100';
       default:
         return isDark ? 'bg-gray-800' : 'bg-gray-100';
@@ -82,7 +114,7 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
   return (
     <DraggablePanel 
       title={`${simulatorType} Problem: ${problem.title}`} 
-      defaultPosition={{ x: window.innerWidth - 400, y: 400 }}
+      defaultPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 420 : 600, y: 400 }}
       width={width}
     >
       <div className={`${isDark ? 'text-white' : 'text-gray-800'} max-h-[600px] overflow-y-auto`}>
@@ -129,44 +161,82 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
                   <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Accept ({problem.accept.length} strings)
+                  {/* Handle both accept/reject format and testStrings format */}
+                  {problem.accept ? (
+                    <>
+                      Accept ({problem.accept?.length || 0} strings)
+                    </>
+                  ) : (
+                    <>Test Cases ({problem.testStrings?.length || 0} cases)</>
+                  )}
                 </h4>
                 <div className={`p-3 rounded font-mono text-sm ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  {problem.accept.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {problem.accept.map((str, idx) => (
-                        <span key={idx} className={`px-2 py-1 rounded ${isDark ? 'bg-green-900/30 text-green-200' : 'bg-green-100 text-green-800'}`}>
-                          "{str}"
-                        </span>
-                      ))}
-                    </div>
+                  {problem.accept ? (
+                    // Traditional accept/reject format
+                    problem.accept.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {problem.accept.map((str, idx) => (
+                          <span key={idx} className={`px-2 py-1 rounded ${isDark ? 'bg-green-900/30 text-green-200' : 'bg-green-100 text-green-800'}`}>
+                            "{str}"
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">No accept strings</span>
+                    )
                   ) : (
-                    <span className="text-gray-500">No accept strings</span>
+                    // FSM testStrings format
+                    problem.testStrings && problem.testStrings.length > 0 ? (
+                      <div className="space-y-2">
+                        {problem.testStrings.map((test, idx) => (
+                          <div key={idx} className={`p-2 rounded ${isDark ? 'bg-gray-700' : 'bg-white'} border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-blue-500">Input:</span>
+                                <span className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-blue-900/30 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                                  "{test.input}"
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-green-500">Expected:</span>
+                                <span className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-green-900/30 text-green-200' : 'bg-green-100 text-green-800'}`}>
+                                  "{test.expectedOutput}"
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">No test cases</span>
+                    )
                   )}
                 </div>
               </div>
               
-              <div>
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Reject ({problem.reject.length} strings)
-                </h4>
-                <div className={`p-3 rounded font-mono text-sm ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  {problem.reject.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {problem.reject.map((str, idx) => (
-                        <span key={idx} className={`px-2 py-1 rounded ${isDark ? 'bg-red-900/30 text-red-200' : 'bg-red-100 text-red-800'}`}>
-                          "{str}"
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-gray-500">No reject strings</span>
-                  )}
+              {problem.reject && (
+                <div>
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Reject ({problem.reject?.length || 0} strings)
+                  </h4>
+                  <div className={`p-3 rounded font-mono text-sm ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    {problem.reject.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {problem.reject.map((str, idx) => (
+                          <span key={idx} className={`px-2 py-1 rounded ${isDark ? 'bg-red-900/30 text-red-200' : 'bg-red-100 text-red-800'}`}>
+                            "{str}"
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">No reject strings</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -230,22 +300,47 @@ const ProblemPanel: React.FC<ProblemPanelProps> = ({
               {!results.passed && (
                 <div>
                   <h4 className="font-semibold mb-2 text-red-500">Failed Tests:</h4>
-                  <ul className="space-y-1 text-sm">
+                  <div className="space-y-2 text-sm">
                     {results.acceptResults
                       .filter((r) => !r.accepted)
                       .map((result, idx) => (
-                        <li key={`accept-${idx}`} className={isDark ? "text-red-400" : "text-red-600"}>
-                          • "{result.string}" should be <strong>accepted</strong> but was <strong>rejected</strong>
-                        </li>
+                        <div key={`accept-${idx}`} className={`p-3 rounded ${isDark ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'}`}>
+                          <div className={`font-medium mb-2 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                            Input: "{result.string}"
+                          </div>
+                          {result.actualOutput !== undefined && result.expectedOutput !== undefined ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium">Expected:</span>
+                                <span className={`px-2 py-1 rounded text-xs font-mono ${isDark ? 'bg-green-900/30 text-green-200' : 'bg-green-100 text-green-800'}`}>
+                                  "{result.expectedOutput}"
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium">Actual:</span>
+                                <span className={`px-2 py-1 rounded text-xs font-mono ${isDark ? 'bg-red-900/30 text-red-200' : 'bg-red-100 text-red-800'}`}>
+                                  "{result.actualOutput}"
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={isDark ? "text-red-400" : "text-red-600"}>
+                              Should be <strong>accepted</strong> but was <strong>rejected</strong>
+                              {result.error && <div className="text-xs mt-1">Error: {result.error}</div>}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     {results.rejectResults
                       .filter((r) => r.accepted)
                       .map((result, idx) => (
-                        <li key={`reject-${idx}`} className={isDark ? "text-red-400" : "text-red-600"}>
-                          • "{result.string}" should be <strong>rejected</strong> but was <strong>accepted</strong>
-                        </li>
+                        <div key={`reject-${idx}`} className={`p-3 rounded ${isDark ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'}`}>
+                          <div className={`font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                            • "{result.string}" should be <strong>rejected</strong> but was <strong>accepted</strong>
+                          </div>
+                        </div>
                       ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
