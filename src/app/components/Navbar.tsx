@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { logoutUser } from '../store/authSlice';
-import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useResponsive } from '../context/ResponsiveContext';
+import { logoutUser } from '../store/authSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 type NavbarProps = {
   onThemeChange: (theme: 'light' | 'dark') => void;
@@ -16,19 +17,27 @@ type NavbarProps = {
 const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const themeColor = '#70D9C2';
-  
+
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const router = useRouter();
-  
+  const { isMobile, isSmallMobile } = useResponsive();
+
   // Add state to track if we're client-side to prevent hydration errors
   const [isClient, setIsClient] = useState(false);
-  
+
   // After initial render, mark as client-side
   useEffect(() => {
     setIsClient(true);
   }, []);
-  
+
+  // Close mobile menu when screen size changes
+  useEffect(() => {
+    if (!isMobile && menuOpen) {
+      setMenuOpen(false);
+    }
+  }, [isMobile, menuOpen]);
+
   const handleLogout = async () => {
     try {
       await dispatch(logoutUser()).unwrap();
@@ -46,26 +55,26 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
     if (!isClient) {
       return (
         <>
-          <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500">
+          <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500 touch-target">
             Sign Up
           </Link>
-          <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
+          <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors touch-target" style={{ backgroundColor: themeColor }}>
             Login
           </Link>
         </>
       );
     }
-    
+
     // After hydration, render based on auth state
     return user ? (
       <>
-        <Link href="/profile" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+        <Link href="/profile" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
           Profile
         </Link>
-        
+
         <button
           onClick={handleLogout}
-          className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors"
+          className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors touch-target"
           style={{ backgroundColor: themeColor }}
         >
           Logout
@@ -73,10 +82,10 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
       </>
     ) : (
       <>
-        <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500">
+        <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500 touch-target">
           Sign Up
         </Link>
-        <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors" style={{ backgroundColor: themeColor }}>
+        <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors touch-target" style={{ backgroundColor: themeColor }}>
           Login
         </Link>
       </>
@@ -89,16 +98,16 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
     if (!isClient) {
       return (
         <>
-          <Link 
-            href="/signup" 
-            className={`block px-3 py-2 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2`}
+          <Link
+            href="/signup"
+            className={`block px-3 py-3 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2 touch-target`}
             onClick={() => setMenuOpen(false)}
           >
             Sign Up
           </Link>
-          <Link 
-            href="/login" 
-            className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+          <Link
+            href="/login"
+            className="block px-3 py-3 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2 touch-target"
             style={{ backgroundColor: themeColor }}
             onClick={() => setMenuOpen(false)}
           >
@@ -107,22 +116,22 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
         </>
       );
     }
-    
+
     // After hydration, render based on auth state
     return user ? (
       <>
-        <Link 
-          href="/profile" 
-          className={`block px-3 py-2 rounded-md text-base font-medium ${
-            currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
-          }`}
+        <Link
+          href="/profile"
+          className={`block px-3 py-3 rounded-md text-base font-medium touch-target ${currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+            }`}
+          onClick={() => setMenuOpen(false)}
         >
           Profile
         </Link>
-        
+
         <button
           onClick={handleLogout}
-          className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+          className="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2 touch-target"
           style={{ backgroundColor: themeColor }}
         >
           Logout
@@ -130,16 +139,16 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
       </>
     ) : (
       <>
-        <Link 
-          href="/signup" 
-          className={`block px-3 py-2 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2`}
+        <Link
+          href="/signup"
+          className={`block px-3 py-3 rounded-md text-base font-medium border border-teal-500 text-teal-500 my-2 touch-target`}
           onClick={() => setMenuOpen(false)}
         >
           Sign Up
         </Link>
-        <Link 
-          href="/login" 
-          className="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2"
+        <Link
+          href="/login"
+          className="block px-3 py-3 rounded-md text-base font-medium text-white hover:bg-opacity-90 my-2 touch-target"
           style={{ backgroundColor: themeColor }}
           onClick={() => setMenuOpen(false)}
         >
@@ -154,50 +163,49 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex-shrink-0 flex items-center">
-            <Link href="/" className="flex items-center">
+            <Link href="/" className="flex items-center touch-target">
               <div className="w-auto relative">
-                <Image 
-                  src="/logo/png/3.png" 
-                  alt="AutomataVerse" 
-                  width={80} 
-                  height={20}
+                <Image
+                  src="/logo/png/3.png"
+                  alt="AutomataVerse"
+                  width={isSmallMobile ? 60 : 80}
+                  height={isSmallMobile ? 15 : 20}
                   className={`${currentTheme === 'dark' ? 'brightness-200' : ''} object-contain`}
                   priority
                 />
               </div>
-              <span className="text-xl font-medium mr-2">
+              <span className={`${isSmallMobile ? 'text-lg' : 'text-xl'} font-medium mr-2`}>
                 <span style={{ color: '#70DAC2' }}>Automata</span>
                 <span className={`font-bold ${currentTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Verse</span>
               </span>
             </Link>
           </div>
-          
+
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-            <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+            <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Simulators
             </Link>
-            
-            <Link href="/learn" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+
+            <Link href="/learn" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Learn
             </Link>
-            
-            <Link href="/demo" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+
+            <Link href="/demo" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Demo
             </Link>
-            
-            <Link href="/#features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500">
+
+            <Link href="/#features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Features
             </Link>
-            
+
             {/* Use the client-side only auth links function */}
             {renderAuthLinks()}
-            
+
             {/* Theme toggle button */}
-            <button 
+            <button
               onClick={() => onThemeChange(currentTheme === 'dark' ? 'light' : 'dark')}
-              className={`flex items-center justify-center p-2 rounded-full ${
-                currentTheme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
-              } hover:text-white transition-colors hover:bg-teal-500`}
+              className={`flex items-center justify-center p-2 rounded-full touch-target ${currentTheme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
+                } hover:text-white transition-colors hover:bg-teal-500`}
               aria-label="Toggle dark mode"
             >
               {currentTheme === 'dark' ? (
@@ -211,14 +219,14 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
               )}
             </button>
           </div>
-          
+
           <div className="-mr-2 flex items-center sm:hidden">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className={`inline-flex items-center justify-center p-2 rounded-md ${
-                currentTheme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              } focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500`}
+              className={`inline-flex items-center justify-center p-3 rounded-md touch-target ${currentTheme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500 transition-colors`}
               aria-expanded="false"
+              aria-label="Toggle mobile menu"
             >
               <span className="sr-only">Open main menu</span>
               {menuOpen ? (
@@ -236,56 +244,55 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
       </div>
 
       {/* Mobile menu, show/hide based on menu state */}
-      <div className={`${menuOpen ? 'block' : 'hidden'} sm:hidden`}>
-        <div className={`px-2 pt-2 pb-3 space-y-1 ${currentTheme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
-          <Link 
-            href="/simulator" 
-            className={`block px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
-            }`}
+      <div className={`${menuOpen ? 'block' : 'hidden'} sm:hidden mobile-nav`}>
+        <div className={`px-2 pt-2 pb-3 space-y-1 ${currentTheme === 'dark' ? 'bg-gray-900' : 'bg-white'} mobile-safe-area`}>
+          <Link
+            href="/simulator"
+            className={`block px-3 py-3 rounded-md text-base font-medium touch-target ${currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+              }`}
+            onClick={() => setMenuOpen(false)}
           >
             Simulators
           </Link>
-          
-          <Link 
-            href="/learn" 
-            className={`block px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
-            }`}
+
+          <Link
+            href="/learn"
+            className={`block px-3 py-3 rounded-md text-base font-medium touch-target ${currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+              }`}
+            onClick={() => setMenuOpen(false)}
           >
             Learn
           </Link>
-          
-          <Link 
-            href="/demo" 
-            className={`block px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
-            }`}
+
+          <Link
+            href="/demo"
+            className={`block px-3 py-3 rounded-md text-base font-medium touch-target ${currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+              }`}
+            onClick={() => setMenuOpen(false)}
           >
             Demo
           </Link>
-          
-          <Link 
-            href="/#features" 
-            className={`block px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
-            }`}
+
+          <Link
+            href="/#features"
+            className={`block px-3 py-3 rounded-md text-base font-medium touch-target ${currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+              }`}
+            onClick={() => setMenuOpen(false)}
           >
             Features
           </Link>
-          
+
           {/* Use the client-side only mobile auth links function */}
           {renderMobileAuthLinks()}
-          
+
           {/* Mobile theme toggle button */}
-          <button 
+          <button
             onClick={() => {
               onThemeChange(currentTheme === 'dark' ? 'light' : 'dark');
               setMenuOpen(false);
             }}
-            className={`w-full text-left flex items-center px-3 py-2 rounded-md text-base font-medium ${
-              currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
-            }`}
+            className={`w-full text-left flex items-center px-3 py-3 rounded-md text-base font-medium touch-target ${currentTheme === 'dark' ? 'text-white hover:text-teal-400' : 'text-gray-900 hover:text-teal-600'
+              }`}
           >
             <span className="mr-2">
               {currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}

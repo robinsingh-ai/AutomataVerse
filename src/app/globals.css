@@ -42,6 +42,10 @@
 body {
   overflow: auto;
   min-height: 100vh;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+  /* Enable smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Add smooth dragging for react-konva */
@@ -241,6 +245,56 @@ body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
+
+  /* Mobile-specific panel optimizations */
+  .mobile-panel {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    transform: none !important;
+    z-index: 1000 !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+  }
+
+  .mobile-panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: inherit;
+  }
+
+  /* Mobile simulator canvas optimizations */
+  .mobile-canvas-container {
+    touch-action: pan-x pan-y pinch-zoom;
+    -webkit-user-select: none;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Mobile control optimizations */
+  .mobile-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    z-index: 50;
+  }
+
+  .dark .mobile-controls {
+    background: rgba(15, 17, 21, 0.95);
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
 }
 
 /* Touch-friendly interactive elements */
@@ -278,6 +332,27 @@ body {
   user-select: none;
   position: relative;
   overflow: hidden;
+}
+
+/* Enhanced mobile canvas interactions */
+@media (max-width: 768px) {
+  .canvas-container {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+  
+  /* Allow zoom on canvas but prevent on UI elements */
+  .simulator-stage {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+  
+  .ui-overlay {
+    touch-action: none;
+    pointer-events: none;
+  }
+  
+  .ui-overlay * {
+    pointer-events: auto;
+  }
 }
 
 /* Tablet optimizations */
@@ -384,5 +459,75 @@ body {
   input, textarea, select {
     min-height: 44px;
     font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Mobile-specific simulator optimizations */
+@media (max-width: 768px) {
+  /* Optimize simulator layout for mobile */
+  .simulator-container {
+    height: calc(100vh - 120px);
+    overflow: hidden;
+  }
+  
+  .simulator-stage {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  /* Mobile panel management */
+  .mobile-panel-stack {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px 16px 0 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .dark .mobile-panel-stack {
+    background: rgba(15, 17, 21, 0.95);
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Mobile control buttons */
+  .mobile-control-btn {
+    min-height: 48px;
+    min-width: 48px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  /* Mobile input fields */
+  .mobile-input {
+    min-height: 48px;
+    font-size: 16px;
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mobile-panel-stack {
+    max-height: 50vh;
+  }
+  
+  .simulator-container {
+    height: calc(100vh - 80px);
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .canvas-container canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
 }
