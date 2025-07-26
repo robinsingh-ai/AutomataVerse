@@ -1,10 +1,10 @@
-import './globals.css';
-import { ThemeProvider } from './context/ThemeContext';
-import { ResponsiveProvider } from './context/ResponsiveContext';
-import { ReduxProvider } from './context/ReduxProvider';
-import AuthStateListener from './context/AuthStateListener';
+import { Analytics } from "@vercel/analytics/react";
 import Script from 'next/script';
-import { Analytics } from "@vercel/analytics/react"
+import AuthStateListener from './context/AuthStateListener';
+import { ReduxProvider } from './context/ReduxProvider';
+import { ResponsiveProvider } from './context/ResponsiveContext';
+import { ThemeProvider } from './context/ThemeContext';
+import './globals.css';
 
 
 export default function RootLayout({
@@ -29,9 +29,17 @@ export default function RootLayout({
           content="automata simulator, DFA simulator, NFA, PDA, Turing Machine, finite automata, computational theory, formal languages"
         />
         <meta name="author" content="AutomataVerse" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        {/* Enhanced mobile viewport and touch handling */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="AutomataVerse" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="msapplication-tap-highlight" content="no" />
+
         <meta name="robots" content="index, follow" />
-        
 
 
         {/* Google Analytics Script */}
