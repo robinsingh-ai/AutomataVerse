@@ -157,6 +157,35 @@ const MachineDetailsModal: React.FC<MachineModalProps> = ({ machine, isOpen, onC
   );
 };
 
+// Streak popup modal
+const StreakPopup: React.FC<{ isOpen: boolean; onClose: () => void; streak: number; highestStreak: number; message: string }> = ({ isOpen, onClose, streak, highestStreak, message }) => {
+  const { theme } = useTheme();
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose}></div>
+      <div className={`relative rounded-lg shadow-lg w-full max-w-sm p-6 text-center bg-white text-gray-900`}>
+        <h3 className="text-xl font-semibold mb-2">Great! Your streak increased by 1</h3>
+        <p className="text-4xl font-bold mb-2" style={{ color: '#70D9C2' }}>{streak} days</p>
+        <p className="text-sm mb-4">Highest streak: {highestStreak} days</p>
+        <p className="text-sm mb-4">{message}</p>
+        <button
+          onClick={onClose}
+          className={`px-4 py-2 rounded ${
+            theme === 'dark'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          }`}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Create a client-only component for the profile picture to avoid hydration issues
 const ProfilePicture = dynamic(
   () =>
@@ -277,6 +306,21 @@ export default function ProfilePage() {
   // State for error handling
   const [error, setError] = useState<string | null>(null);
 
+  // Streak states
+  const [streak, setStreak] = useState(0);
+  const [highestStreak, setHighestStreak] = useState(0);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
+  const [motivationalMessage, setMotivationalMessage] = useState("");
+
+  // Motivational messages array
+  const messages = [
+    "Keep it up! Consistency is key to mastering automata.",
+    "You're on fire! One more day closer to expertise.",
+    "Great job! Your dedication is paying off.",
+    "Awesome! Maintain this momentum for great results.",
+    "Well done! Every day counts towards your goals."
+  ];
+
   useEffect(() => {
     setIsClient(true);
     
@@ -298,6 +342,66 @@ export default function ProfilePage() {
         setIsLoading(false);
         // Set friendly error message
         setError('There was a problem loading your machines. Please try again later.');
+      }
+
+      // Handle streak logic
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const lastLogin = Cookies.get('lastLogin');
+      let currentStreak = parseInt(Cookies.get('streak') || '0', 10);
+      let currentHighest = parseInt(Cookies.get('highestStreak') || '0', 10);
+
+      // Ensure highest is at least current (fix any inconsistency)
+      if (currentHighest < currentStreak) {
+        currentHighest = currentStreak;
+        Cookies.set('highestStreak', currentHighest.toString(), { expires: 365 });
+      }
+
+      let newStreak = currentStreak;
+      let newHighest = currentHighest;
+
+      if (!lastLogin) {
+        // First login
+        newStreak = 1;
+        newHighest = Math.max(newHighest, newStreak);
+        Cookies.set('streak', newStreak.toString(), { expires: 365 });
+        Cookies.set('highestStreak', newHighest.toString(), { expires: 365 });
+        Cookies.set('lastLogin', today, { expires: 365 });
+        setStreak(newStreak);
+        setHighestStreak(newHighest);
+        setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)]);
+        setShowStreakPopup(true);
+      } else if (lastLogin === today) {
+        // Already logged in today, no change
+        setStreak(currentStreak);
+        setHighestStreak(currentHighest);
+      } else {
+        const lastDate = new Date(lastLogin);
+        const todayDate = new Date(today);
+        const diffTime = todayDate.getTime() - lastDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) {
+          // Consecutive day, increment streak
+          newStreak = currentStreak + 1;
+          newHighest = Math.max(newHighest, newStreak);
+          Cookies.set('streak', newStreak.toString(), { expires: 365 });
+          Cookies.set('highestStreak', newHighest.toString(), { expires: 365 });
+          Cookies.set('lastLogin', today, { expires: 365 });
+          setStreak(newStreak);
+          setHighestStreak(newHighest);
+          setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)]);
+          setShowStreakPopup(true);
+        } else {
+          // Streak broken, reset to 1
+          newStreak = 1;
+          newHighest = Math.max(newHighest, newStreak);
+          Cookies.set('streak', newStreak.toString(), { expires: 365 });
+          Cookies.set('highestStreak', newHighest.toString(), { expires: 365 });
+          Cookies.set('lastLogin', today, { expires: 365 });
+          setStreak(newStreak);
+          setHighestStreak(newHighest);
+          // No popup for reset
+        }
       }
     }
     
@@ -485,6 +589,36 @@ export default function ProfilePage() {
           ))}
         </div>
 
+        {/* Streak Section */}
+        <div
+          className={`mt-6 rounded-lg shadow overflow-hidden ${
+            isDark ? "bg-gray-800" : "bg-white"
+          }`}
+        >
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Daily Login Streak
+            </h2>
+          </div>
+          <div className="p-6 text-center">
+            <div className="flex justify-center items-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-orange-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.494 31.494 0 00-.738 3.858c-.043.564.442.337.035.3-.536-.061-1.083-.095-1.146.116-.039.169-.159.33-.469.331-.297.001-.75-.29-.986-.593a18.38 18.38 0 00-3.2-2.735c-.306-.247-.815-.211-.822.176-.011.71.031 1.414.119 2.102.424 3.355 2.534 6.211 5.745 7.158a1 1 0 00.88-.082 9.03 9.03 0 003.742-4.98c.24-.69.445-1.36.546-2.027.373-2.205.369-4.398-.004-6.602-.169-.815-.393-1.6-.67-2.355zM12 15.5a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0z" clipRule="evenodd" />
+              </svg>
+              <p className="text-4xl font-bold" style={{ color: themeColor }}>
+                {streak}
+              </p>
+              <span className="text-xl ml-1 text-gray-500 dark:text-gray-400">days</span>
+            </div>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
+              Highest streak: {highestStreak} days
+            </p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Log in every day to keep your streak going!
+            </p>
+          </div>
+        </div>
+
         {/* Saved Machines */}
         <div
           className={`mt-6 rounded-lg shadow overflow-hidden ${
@@ -592,6 +726,15 @@ export default function ProfilePage() {
         machine={selectedMachine}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+      
+      {/* Streak popup */}
+      <StreakPopup
+        isOpen={showStreakPopup}
+        onClose={() => setShowStreakPopup(false)}
+        streak={streak}
+        highestStreak={highestStreak}
+        message={motivationalMessage}
       />
     </div>
   );
