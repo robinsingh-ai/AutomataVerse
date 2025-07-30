@@ -369,6 +369,12 @@ export default function ProfilePage() {
 
       // Handle streak logic
       const handleStreak = async () => {
+        if (!user?.uid) {
+          console.error('User UID is not available');
+          setIsStreakLoading(false);
+          return;
+        }
+        
         setIsStreakLoading(true);
         try {
           // Check network status
@@ -388,7 +394,8 @@ export default function ProfilePage() {
           }
         } catch (err) {
           console.error('Failed to handle streak:', err);
-          setError(err.message);
+          const errorMessage = err instanceof Error ? err.message : 'An error occurred while handling streak';
+          setError(errorMessage);
           setShowErrorPopup(true);
           // Use local streak data if available
           const localStreak = JSON.parse(localStorage.getItem(`streak_${user.uid}`) || '{}');

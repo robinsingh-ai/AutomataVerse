@@ -215,7 +215,8 @@ export const getUserStreak = async (userId: string): Promise<UserStreak> => {
     };
     setLocalStreak(defaultStreak);
     console.log('Using default streak due to Firestore and localStorage failure');
-    throw new Error(`Failed to get user streak: ${error.message}. Using default values.`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to get user streak: ${errorMessage}. Using default values.`);
   }
 };
 
@@ -309,6 +310,7 @@ export const updateUserStreak = async (userId: string): Promise<UserStreak> => {
     };
     setLocalStreak(fallbackStreak);
     console.log('Firestore failed: Login queued in localStorage, using calculated streak');
-    throw new Error(`Failed to update streak in Firestore: ${error.message}. Login queued locally.`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to update streak in Firestore: ${errorMessage}. Login queued locally.`);
   }
 };
