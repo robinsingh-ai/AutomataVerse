@@ -23,4 +23,4 @@ const getCurrentUser = () => {
   return getAuth(app).currentUser;
 };
 
-export { app, db, auth, getCurrentUser }; 
+export { app, auth, db, getCurrentUser };
