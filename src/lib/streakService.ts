@@ -1,15 +1,34 @@
 import { db } from './firebase';
 import { collection, doc, getDoc, setDoc, Timestamp, enableIndexedDbPersistence } from 'firebase/firestore';
 
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.error('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code === 'unimplemented') {
-    console.error('The current browser does not support all of the features required to enable persistence');
-  } else {
-    console.error('Error enabling persistence:', err);
+// Global flag to ensure persistence is only enabled once
+let persistenceEnabled = false;
+
+// Function to safely enable persistence
+const enablePersistence = async () => {
+  if (persistenceEnabled || typeof window === 'undefined') {
+    return;
   }
-});
+  
+  try {
+    await enableIndexedDbPersistence(db, {
+      forceOwnership: false // Allow multiple tabs
+    });
+    persistenceEnabled = true;
+    console.log('Firestore persistence enabled successfully');
+  } catch (err: any) {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+      // Continue without persistence
+    } else if (err.code === 'unimplemented') {
+      console.warn('The current browser does not support all of the features required to enable persistence');
+      // Continue without persistence
+    } else {
+      console.warn('Error enabling persistence:', err);
+    }
+    // Don't throw error, just continue without persistence
+  }
+};
 
 export interface UserStreak {
   userId: string;
@@ -113,6 +132,9 @@ const calculateStreakFromLogins = (loginDates: Timestamp[]): { currentStreak: nu
 };
 
 export const getUserStreak = async (userId: string): Promise<UserStreak> => {
+  // Try to enable persistence (will only run once)
+  await enablePersistence();
+  
   try {
     const streakRef = doc(db, 'streaks', userId);
     const streakSnap = await getDoc(streakRef);
@@ -201,6 +223,8 @@ export const getUserStreak = async (userId: string): Promise<UserStreak> => {
  * Update a user's streak based on their login, queuing if Firebase fails
  */
 export const updateUserStreak = async (userId: string): Promise<UserStreak> => {
+  // Try to enable persistence (will only run once)
+  await enablePersistence();
   try {
     const streakRef = doc(db, 'streaks', userId);
     const currentTime = Timestamp.now();
