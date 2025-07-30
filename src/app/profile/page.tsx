@@ -5,14 +5,13 @@ import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logoutUser } from "../store/authSlice";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { getUserMachines, SavedMachine } from "../../lib/machineService";
-import { Timestamp } from "firebase/firestore";
 import { listenToUserMachines } from "../../lib/machineService";
+import { getUserStreak, updateUserStreak } from "../../lib/streakService";
+import { Timestamp } from "firebase/firestore";
 
 // Machine details modal
 interface MachineModalProps {
@@ -70,7 +69,6 @@ const MachineDetailsModal: React.FC<MachineModalProps> = ({ machine, isOpen, onC
         
         <div className="mb-4">
           <div className={`p-3 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'} flex items-center`}>
-            {/* Machine type icon */}
             <div className="mr-3">
               {machine.machineType.includes('Turing') ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
@@ -186,99 +184,121 @@ const StreakPopup: React.FC<{ isOpen: boolean; onClose: () => void; streak: numb
   );
 };
 
+// Error popup modal
+const ErrorPopup: React.FC<{ isOpen: boolean; onClose: () => void; message: string }> = ({ isOpen, onClose, message }) => {
+  const { theme } = useTheme();
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose}></div>
+      <div className={`relative rounded-lg shadow-lg w-full max-w-sm p-6 text-center bg-white text-gray-900`}>
+        <h3 className="text-xl font-semibold mb-2 text-red-600">Sync Error</h3>
+        <p className="text-sm mb-4">{message}</p>
+        <p className="text-sm mb-4">Your login has been recorded locally and will sync when connectivity is restored.</p>
+        <button
+          onClick={onClose}
+          className={`px-4 py-2 rounded ${
+            theme === 'dark'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          }`}
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Create a client-only component for the profile picture to avoid hydration issues
 const ProfilePicture = dynamic(
-  () =>
-    Promise.resolve(({ user }: { user: any }) => {
-      return user?.photoURL ? (
-        <Image
-          src={user.photoURL}
-          alt={user.displayName || "User"}
-          width={128}
-          height={128}
-          className="h-full w-full object-cover"
-          onError={(e) => {
-            // If image fails to load, replace with default avatar
-            const target = e.target as HTMLImageElement;
-            target.onerror = null; // Prevent infinite loop
-            target.style.display = "none"; // Hide the image
-            // The parent div already has the SVG fallback that will show
-          }}
-          unoptimized={true} // Skip Next.js image optimization for external URLs
+  () => Promise.resolve(({ user }: { user: any }) => {
+    return user?.photoURL ? (
+      <Image
+        src={user.photoURL}
+        alt={user.displayName || "User"}
+        width={128}
+        height={128}
+        className="h-full w-full object-cover"
+        onError={(e) => {
+          const target = e.target as HTMLImageElement;
+          target.onerror = null; // Prevent infinite loop
+          target.style.display = "none"; // Hide the image
+        }}
+        unoptimized={true} // Skip Next.js image optimization for external URLs
+      />
+    ) : (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-16 w-16 text-gray-400 dark:text-gray-300"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
         />
-      ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-16 w-16 text-gray-400 dark:text-gray-300"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      );
-    }),
+      </svg>
+    );
+  }),
   { ssr: false }
 );
 
 // Create a client-only component for user information to avoid hydration issues
 const UserInfo = dynamic(
-  () =>
-    Promise.resolve(({ user }: { user: any }) => {
-      return (
-        <>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {user?.displayName || "User"}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Member since{" "}
-            {new Date().toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </>
-      );
-    }),
+  () => Promise.resolve(({ user }: { user: any }) => {
+    return (
+      <>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {user?.displayName || "User"}
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Member since{" "}
+          {new Date().toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+      </>
+    );
+  }),
   { ssr: false }
 );
 
 // Create a client-only component for contact information to avoid hydration issues
 const ContactInfo = dynamic(
-  () =>
-    Promise.resolve(({ user, isDark }: { user: any; isDark: boolean }) => {
-      return (
-        <div
-          className={`p-4 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-            Contact Information
-          </h2>
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-              </svg>
-              <span className="text-gray-700 dark:text-gray-300">
-                {user?.email || "email@example.com"}
-              </span>
-            </div>
-           
+  () => Promise.resolve(({ user, isDark }: { user: any; isDark: boolean }) => {
+    return (
+      <div
+        className={`p-4 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+          Contact Information
+        </h2>
+        <div className="space-y-2">
+          <div className="flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-2"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+            </svg>
+            <span className="text-gray-700 dark:text-gray-300">
+              {user?.email || "email@example.com"}
+            </span>
           </div>
         </div>
-      );
-    }),
+      </div>
+    );
+  }),
   { ssr: false }
 );
 
@@ -305,12 +325,15 @@ export default function ProfilePage() {
 
   // State for error handling
   const [error, setError] = useState<string | null>(null);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
 
   // Streak states
   const [streak, setStreak] = useState(0);
   const [highestStreak, setHighestStreak] = useState(0);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [motivationalMessage, setMotivationalMessage] = useState("");
+  const [isStreakLoading, setIsStreakLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
 
   // Motivational messages array
   const messages = [
@@ -340,69 +363,45 @@ export default function ProfilePage() {
       } catch (error) {
         console.error('Error setting up machines listener:', error);
         setIsLoading(false);
-        // Set friendly error message
         setError('There was a problem loading your machines. Please try again later.');
+        setShowErrorPopup(true);
       }
 
       // Handle streak logic
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      const lastLogin = Cookies.get('lastLogin');
-      let currentStreak = parseInt(Cookies.get('streak') || '0', 10);
-      let currentHighest = parseInt(Cookies.get('highestStreak') || '0', 10);
+      const handleStreak = async () => {
+        setIsStreakLoading(true);
+        try {
+          // Check network status
+          setIsOffline(!navigator.onLine);
 
-      // Ensure highest is at least current (fix any inconsistency)
-      if (currentHighest < currentStreak) {
-        currentHighest = currentStreak;
-        Cookies.set('highestStreak', currentHighest.toString(), { expires: 365 });
-      }
+          // Fetch previous streak BEFORE updating
+          const previous = await getUserStreak(user.uid);
+          const updated = await updateUserStreak(user.uid);
+          
+          setStreak(updated.currentStreak);
+          setHighestStreak(updated.highestStreak);
 
-      let newStreak = currentStreak;
-      let newHighest = currentHighest;
-
-      if (!lastLogin) {
-        // First login
-        newStreak = 1;
-        newHighest = Math.max(newHighest, newStreak);
-        Cookies.set('streak', newStreak.toString(), { expires: 365 });
-        Cookies.set('highestStreak', newHighest.toString(), { expires: 365 });
-        Cookies.set('lastLogin', today, { expires: 365 });
-        setStreak(newStreak);
-        setHighestStreak(newHighest);
-        setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)]);
-        setShowStreakPopup(true);
-      } else if (lastLogin === today) {
-        // Already logged in today, no change
-        setStreak(currentStreak);
-        setHighestStreak(currentHighest);
-      } else {
-        const lastDate = new Date(lastLogin);
-        const todayDate = new Date(today);
-        const diffTime = todayDate.getTime() - lastDate.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 1) {
-          // Consecutive day, increment streak
-          newStreak = currentStreak + 1;
-          newHighest = Math.max(newHighest, newStreak);
-          Cookies.set('streak', newStreak.toString(), { expires: 365 });
-          Cookies.set('highestStreak', newHighest.toString(), { expires: 365 });
-          Cookies.set('lastLogin', today, { expires: 365 });
-          setStreak(newStreak);
-          setHighestStreak(newHighest);
-          setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)]);
-          setShowStreakPopup(true);
-        } else {
-          // Streak broken, reset to 1
-          newStreak = 1;
-          newHighest = Math.max(newHighest, newStreak);
-          Cookies.set('streak', newStreak.toString(), { expires: 365 });
-          Cookies.set('highestStreak', newHighest.toString(), { expires: 365 });
-          Cookies.set('lastLogin', today, { expires: 365 });
-          setStreak(newStreak);
-          setHighestStreak(newHighest);
-          // No popup for reset
+          // Show popup only if streak increased
+          if (updated.currentStreak > previous.currentStreak) {
+            setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)]);
+            setShowStreakPopup(true);
+          }
+        } catch (err) {
+          console.error('Failed to handle streak:', err);
+          setError(err.message);
+          setShowErrorPopup(true);
+          // Use local streak data if available
+          const localStreak = JSON.parse(localStorage.getItem(`streak_${user.uid}`) || '{}');
+          if (localStreak && localStreak.currentStreak != null) {
+            setStreak(localStreak.currentStreak);
+            setHighestStreak(localStreak.highestStreak);
+          }
+        } finally {
+          setIsStreakLoading(false);
         }
-      }
+      };
+
+      handleStreak();
     }
     
     // Clean up listener when component unmounts or user changes
@@ -416,7 +415,7 @@ export default function ProfilePage() {
   // Stats section data with real counts
   const stats = [
     { name: "Automata Created", value: savedMachines.length.toString() },
-    { name: "Simulations Run", value: "0" },  // We'll update this with real data later
+    { name: "Simulations Run", value: "0" }, // Update with real data later
     { name: "Saved Projects", value: savedMachines.length.toString() },
   ];
   
@@ -427,10 +426,7 @@ export default function ProfilePage() {
     const now = new Date();
     const date = timestamp.toDate();
     
-    // Calculate difference in milliseconds
     const diff = now.getTime() - date.getTime();
-    
-    // Convert to days
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     
     if (days === 0) {
@@ -456,10 +452,16 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     try {
       await dispatch(logoutUser()).unwrap();
-      Cookies.remove("authSession");
+      // Clear localStorage streak data on logout
+      if (user?.uid) {
+        localStorage.removeItem(`streak_${user.uid}`);
+        localStorage.removeItem(`queued_logins_${user.uid}`);
+      }
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
+      setError('Failed to log out. Please try again.');
+      setShowErrorPopup(true);
     }
   };
 
@@ -477,7 +479,6 @@ export default function ProfilePage() {
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
           {/* Profile Header */}
           <div className="relative h-48 bg-gradient-to-r from-teal-500 to-blue-500">
-            {/* Profile picture overlay */}
             <div className="absolute -bottom-16 left-6 sm:left-8">
               <div
                 className={`h-32 w-32 rounded-full border-4 ${
@@ -490,7 +491,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Logout button */}
             <div className="absolute top-4 right-4">
               <button
                 onClick={handleLogout}
@@ -554,7 +554,6 @@ export default function ProfilePage() {
                           email@example.com
                         </span>
                       </div>
-                      
                     </div>
                   </div>
                 )}
@@ -601,21 +600,33 @@ export default function ProfilePage() {
             </h2>
           </div>
           <div className="p-6 text-center">
-            <div className="flex justify-center items-center mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-orange-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.494 31.494 0 00-.738 3.858c-.043.564.442.337.035.3-.536-.061-1.083-.095-1.146.116-.039.169-.159.33-.469.331-.297.001-.75-.29-.986-.593a18.38 18.38 0 00-3.2-2.735c-.306-.247-.815-.211-.822.176-.011.71.031 1.414.119 2.102.424 3.355 2.534 6.211 5.745 7.158a1 1 0 00.88-.082 9.03 9.03 0 003.742-4.98c.24-.69.445-1.36.546-2.027.373-2.205.369-4.398-.004-6.602-.169-.815-.393-1.6-.67-2.355zM12 15.5a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0z" clipRule="evenodd" />
-              </svg>
-              <p className="text-4xl font-bold" style={{ color: themeColor }}>
-                {streak}
+            {isStreakLoading ? (
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Loading streak...
               </p>
-              <span className="text-xl ml-1 text-gray-500 dark:text-gray-400">days</span>
-            </div>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
-              Highest streak: {highestStreak} days
-            </p>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Log in every day to keep your streak going!
-            </p>
+            ) : (
+              <>
+                <div className="flex justify-center items-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-orange-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.494 31.494 0 00-.738 3.858c-.043.564.442.337.035.3-.536-.061-1.083-.095-1.146.116-.039.169-.159.33-.469.331-.297.001-.75-.29-.986-.593a18.38 18.38 0 00-3.2-2.735c-.306-.247-.815-.211-.822.176-.011.71.031 1.414.119 2.102.424 3.355 2.534 6.211 5.745 7.158a1 1 0 00.88-.082 9.03 9.03 0 003.742-4.98c.24-.69.445-1.36.546-2.027.373-2.205.369-4.398-.004-6.602-.169-.815-.393-1.6-.67-2.355zM12 15.5a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-4xl font-bold" style={{ color: themeColor }}>
+                    {streak}
+                  </p>
+                  <span className="text-xl ml-1 text-gray-500 dark:text-gray-400">days</span>
+                </div>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
+                  Highest streak: {highestStreak} days
+                </p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {isOffline
+                    ? 'Offline: Using local data, will sync when reconnected.'
+                    : error
+                      ? 'Using local data due to sync issue.'
+                      : 'Log in every day to keep your streak going!'}
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -673,7 +684,6 @@ export default function ProfilePage() {
                         isDark ? "bg-gray-700" : "bg-gray-100"
                       } mr-4`}
                     >
-                      {/* Different icons based on machine type */}
                       {machine.machineType.includes('Turing') ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
@@ -735,6 +745,13 @@ export default function ProfilePage() {
         streak={streak}
         highestStreak={highestStreak}
         message={motivationalMessage}
+      />
+      
+      {/* Error popup */}
+      <ErrorPopup
+        isOpen={showErrorPopup}
+        onClose={() => setShowErrorPopup(false)}
+        message={error || 'An error occurred.'}
       />
     </div>
   );
