@@ -1,7 +1,6 @@
 import { db } from './firebase';
 import { collection, doc, getDoc, setDoc, Timestamp, enableIndexedDbPersistence } from 'firebase/firestore';
 
-// Enable Firestore offline persistence
 enableIndexedDbPersistence(db).catch((err) => {
   if (err.code === 'failed-precondition') {
     console.error('Multiple tabs open, persistence can only be enabled in one tab at a time.');
@@ -20,12 +19,9 @@ export interface UserStreak {
 }
 
 interface QueuedLogin {
-  timestamp: number; // Milliseconds since epoch
+  timestamp: number; 
 }
 
-/**
- * Read streak data from localStorage
- */
 const getLocalStreak = (userId: string): UserStreak | null => {
   try {
     const streakData = localStorage.getItem(`streak_${userId}`);
@@ -45,9 +41,6 @@ const getLocalStreak = (userId: string): UserStreak | null => {
   }
 };
 
-/**
- * Write streak data to localStorage
- */
 const setLocalStreak = (streak: UserStreak): void => {
   try {
     const dataToStore = {
@@ -62,9 +55,6 @@ const setLocalStreak = (streak: UserStreak): void => {
   }
 };
 
-/**
- * Read queued login dates from localStorage
- */
 const getQueuedLogins = (userId: string): QueuedLogin[] => {
   try {
     const queuedData = localStorage.getItem(`queued_logins_${userId}`);
@@ -75,9 +65,7 @@ const getQueuedLogins = (userId: string): QueuedLogin[] => {
   }
 };
 
-/**
- * Write queued login dates to localStorage
- */
+
 const setQueuedLogins = (userId: string, logins: QueuedLogin[]): void => {
   try {
     localStorage.setItem(`queued_logins_${userId}`, JSON.stringify(logins));
@@ -86,15 +74,12 @@ const setQueuedLogins = (userId: string, logins: QueuedLogin[]): void => {
   }
 };
 
-/**
- * Calculate streak from a list of login dates
- */
+
 const calculateStreakFromLogins = (loginDates: Timestamp[]): { currentStreak: number; highestStreak: number; lastLogin: Timestamp } => {
   if (loginDates.length === 0) {
     return { currentStreak: 0, highestStreak: 0, lastLogin: Timestamp.now() };
   }
 
-  // Sort dates in descending order (most recent first)
   const sortedDates = loginDates
     .map((ts) => new Date(ts.toMillis()))
     .sort((a, b) => b.getTime() - a.getTime());
@@ -115,7 +100,7 @@ const calculateStreakFromLogins = (loginDates: Timestamp[]): { currentStreak: nu
         highestStreak = currentStreak;
       }
     } else if (diffDays > 1) {
-      break; // Streak is broken
+      break; 
     }
     currentDate = prevDate;
   }
@@ -127,9 +112,6 @@ const calculateStreakFromLogins = (loginDates: Timestamp[]): { currentStreak: nu
   };
 };
 
-/**
- * Get a user's streak data, preferring Firestore but falling back to localStorage
- */
 export const getUserStreak = async (userId: string): Promise<UserStreak> => {
   try {
     const streakRef = doc(db, 'streaks', userId);
