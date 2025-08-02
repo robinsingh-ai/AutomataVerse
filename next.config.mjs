@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+import withPWA from 'next-pwa';
+
+const nextConfig = withPWA({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+})({
+  reactStrictMode: true,
+  swcMinify: true,
+
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
@@ -7,59 +17,45 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'lh3.googleusercontent.com', // For Google profile images
+        hostname: 'lh3.googleusercontent.com',
         pathname: '**',
       },
       {
         protocol: 'https',
-        hostname: 'avatars.githubusercontent.com', // Just in case for GitHub profile images
+        hostname: 'avatars.githubusercontent.com',
         pathname: '**',
       },
       {
         protocol: 'https',
-        hostname: '*.googleusercontent.com', // For other Google user content domains
+        hostname: '*.googleusercontent.com',
         pathname: '**',
       },
     ],
   },
+
   eslint: {
-    ignoreDuringBuilds: true, // Ignore ESLint errors during `yarn build`
+    ignoreDuringBuilds: true,
   },
-  
-  // Disable source maps in production to prevent source code exposure
+
   productionBrowserSourceMaps: false,
 
-  // Add security headers for production
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
         ],
       },
     ];
   },
 
-  // Compress output for better performance
   compress: true,
 
-  // Configure webpack to further hide source
   webpack: (config, { dev, isServer }) => {
-    // Only apply in production client builds
     if (!dev && !isServer) {
-      // Avoid exposing filenames
       config.optimization.minimizer.forEach((plugin) => {
         if (plugin.constructor.name === 'TerserPlugin') {
           plugin.options.terserOptions.compress.drop_console = true;
@@ -70,9 +66,8 @@ const nextConfig = {
         }
       });
     }
-
     return config;
   },
-};
+});
 
 export default nextConfig;
