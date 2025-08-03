@@ -1,20 +1,27 @@
 {
-  "name": "AutomataVerse",
+  "name": "AutomataVerse - Automata Simulator",
   "short_name": "AutomataVerse",
+  "description": "Interactive automata simulator for DFA, NFA, PDA, and Turing Machines. Learn computational theory with visual tools.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#000000",
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "en",
+  "scope": "/",
   "icons": [
     {
       "src": "/logo/png/3.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/logo/png/6.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

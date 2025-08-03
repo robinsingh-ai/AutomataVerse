@@ -16,6 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="manifest" href="/manifest.json" />
         <title>AutomataVerse - Automata Simulator for DFA, NFA, PDA & Turing Machines</title>
         {/* seo */}
         <meta name="description" content="Learn about automata theory and formal languages with our interactive simulator. Explore finite automata, pushdown automata, and more with our intuitive tools." />
@@ -38,6 +39,17 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="AutomataVerse" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="msapplication-tap-highlight" content="no" />
+        
+        {/* PWA specific meta tags */}
+        <meta name="application-name" content="AutomataVerse" />
+        <meta name="msapplication-TileColor" content="#000000" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
+        <meta name="theme-color" content="#000000" />
+        
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/logo/png/3.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/logo/png/3.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/logo/png/6.png" />
 
         <meta name="robots" content="index, follow" />
 
