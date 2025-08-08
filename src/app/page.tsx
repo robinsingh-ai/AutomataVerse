@@ -177,66 +177,192 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className={`py-12 ${isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-6 md:mb-0">
-              <div className="flex items-center">
+      <div>
+      <footer className={`relative transition-all duration-300 ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white' 
+          : 'bg-gradient-to-br from-gray-500 via-blue-400 to-gray-300 text-black'
+      }`}>
+        {/* Background pattern */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,...')] opacity-20" />
+
+        <div className="relative z-10">
+          <div className="container mx-auto px-4 py-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 text-left">
+              {/* Company Info */}
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center">
                 <span className="text-xl font-medium">
                   <span style={{ color: '#70DAC2' }}>Automata</span>
                   <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Verse</span>
                 </span>
               </div>
-              <p className="mt-2 text-sm font-medium">
-                Copyright © 2025 AutomataVerse, All rights reserved.
-              </p>
-              <p className="mt-1 text-sm font-medium">
-                Developed by <a
-                  href="https://robinsingh.xyz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold hover:text-teal-500 transition-colors"
-                  style={{ color: themeColor }}
-                >
-                  Robin
-                </a>
-              </p>
-
-            </div>
-            <div> <a href="https://www.producthunt.com/posts/automataverse?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-automataverse" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=938252&theme=light&t=1741194877338" alt="AutomataVerse - Automata&#0032;simulator&#0032;for&#0032;dfa&#0044;&#0032;nfa&#0044;&#0032;pda&#0032;&#0038;&#0032;turing&#0032;machines | Product Hunt" style={{ width: '250px', height: '54px' }} width="250" height="54" /></a></div>
-            <div className="flex flex-wrap gap-8">
-              <div>
-                <h3 className="font-semibold mb-3">Simulators</h3>
-                <ul className="space-y-2">
-                  <li><Link href="/simulator/dfa" className="hover:text-teal-500 transition-colors">DFA</Link></li>
-                  <li><Link href="/simulator/nfa" className="hover:text-teal-500 transition-colors">NFA</Link></li>
-                  <li><Link href="/simulator/pda" className="hover:text-teal-500 transition-colors">PDA</Link></li>
-                  <li><Link href="/simulator/tm" className="hover:text-teal-500 transition-colors">Turing Machine</Link></li>
-                </ul>
+                </div>
+                <p className="text-sm leading-relaxed">
+                  Automata-Verse is an interactive educational platform for learning and experimenting with theory of computation concepts.
+                  The application provides intuitive visual simulators for various automata models that are fundamental to computer science.
+                </p>
+                {/* Social Media Links */}
+                <div className="flex space-x-4">
+                  {/* Icons like Twitter, Pinterest, YouTube, Contributors */}
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold mb-3">Resources</h3>
-                <ul className="space-y-2">
-                  <li><Link href="/getting-started" className="hover:text-teal-500 transition-colors">Getting Started</Link></li>
-                  <li><Link href="/features" className="hover:text-teal-500 transition-colors">Features</Link></li>
-                  <li><Link href="/blog" className="hover:text-teal-500 transition-colors">Blog</Link></li>
-                  <li><Link href="/about" className="hover:text-teal-500 transition-colors">About</Link></li>
-                  <li>
-                    <a
+
+              {/* simulator Links */}
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold border-b border-gray-600 pb-2 text-center">
+                  Simulators
+                </h4>
+                <nav className="flex flex-col space-y-3 items-left">
+                  {[
+                    { name: "DFA", path: "/simulator/dfa" },
+                    { name: "NFA", path: "/simulator/nfa" },
+                    { name: "PDA", path: "/simulator/pda" },
+                    { name: "Turing machine", path: "/simulator/tm" },
+                  ].map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.path}
+                      className="hover:text-blue-300 transition-all duration-300 text-sm flex items-center group"
+                    >
+                      <span className="w-4 flex justify-center">
+                        <span className="w-2 h-2 bg-blue-700 rounded-full group-hover:scale-150 transition-transform"></span>
+                      </span>
+                      <span className="ml-3">{link.name}</span>
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+
+              {/* Resources Links */}
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold border-b border-gray-600 pb-2 text-center">
+                  Resources
+                </h4>
+                <nav className="flex flex-col space-y-3 items-left">
+                  {[
+                    { name: "Getting started", path: "/getting-started" },
+                    { name: "Features", path: "/features" },
+                    { name: "Blog", path: "/blog" },
+                    { name: "About", path: "/about" },
+                  ].map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.path}
+                      className="hover:text-blue-300 transition-all duration-300 text-sm flex items-center group"
+                    >
+                      <span className="w-4 flex justify-center">
+                        <span className="w-2 h-2 bg-blue-700 rounded-full group-hover:scale-150 transition-transform"></span>
+                      </span>
+                      <span className="ml-3">{link.name}</span>
+                    </Link>
+                  ))}
+                  <a
                       href="https://docs.google.com/forms/d/e/1FAIpQLSdmNyVJTWUU7G5W7Zxu6jX9NPHWoz4g82x67UEvc-y-0SaXkw/viewform?usp=sharing"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-teal-500 transition-colors"
+                      className="hover:text-blue-300 transition-all duration-300 text-sm flex items-center group"
                     >
-                      Feedback
+                      <span className="w-4 flex justify-center">
+                        <span className="w-2 h-2 bg-blue-700 rounded-full group-hover:scale-150 transition-transform"></span>
+                      </span>
+                      <span className="ml-3">feedback</span>
                     </a>
-                  </li>
-                </ul>
+                </nav>
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold border-b border-gray-600 pb-2 text-center">
+                  Contact Info
+                </h4>
+                <div className="space-y-4 flex flex-col justify-center items-left">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <a
+                        href="https://www.google.com/maps?q=123+Travel+Street,+Adventure+City,+AC+12345"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm hover:underline block"
+                      >
+                        123 College Street<br />
+                        Kolkata, AC 12345
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm">+1 (555) 123-4567</p>
+                      <p className="text-sm">Mon-Fri 9AM-6PM</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm">hello@automataverse.com</p>
+                      <p className="text-sm">support@automataverse.com</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex align-middle justify-center">
+              <div> <a href="https://www.producthunt.com/posts/automataverse?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-automataverse" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=938252&theme=light&t=1741194877338" alt="AutomataVerse - Automata&#0032;simulator&#0032;for&#0032;dfa&#0044;&#0032;nfa&#0044;&#0032;pda&#0032;&#0038;&#0032;turing&#0032;machines | Product Hunt" style={{ width: '250px', height: '54px' }} width="250" height="54" /></a></div>
+            </div>
+
+            {/* Bottom Section */}
+            <div className="border-t border-gray-700 mt-12 pt-8">
+              <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0">
+                <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
+                  <p className="text-sm">
+                    © 2025 AutomateVerse. All rights reserved.
+                  </p>
+                  <div className="flex space-x-4 text-sm">
+                    <Link href="/privacy" className="hover:text-pink-300 transition-colors">
+                      Privacy Policy
+                    </Link>
+                    <Link href="/terms" className="hover:text-pink-300 transition-colors">
+                      Terms of Service
+                    </Link>
+                    <Link href="/contact" className="hover:text-pink-300 transition-colors">
+                      Contact
+                    </Link>
+                    <Link href="/feedback" className="hover:text-pink-300 transition-colors">
+                      Feedback
+                    </Link>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center space-x-2  text-sm mt-4">
+                <span>Made with</span>
+                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+                <span>by AutomateVerse Team</span>
               </div>
             </div>
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
