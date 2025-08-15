@@ -2,7 +2,9 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import axios, { AxiosError } from 'axios';
@@ -26,80 +28,107 @@ const initialState: AuthState = {
   message: null,
 };
 
+// Logout thunk
+export const logoutUser = createAsyncThunk(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await signOut(auth);
+      return true;
+    } catch (error) {
+      return rejectWithValue('Logout failed');
+    }
+  }
+);
+
 // Google Sign-in thunk
 export const signInWithGoogle = createAsyncThunk(
   'auth/googleSignIn',
   async (_, { rejectWithValue }) => {
     try {
       const provider = new GoogleAuthProvider();
-      // Add some custom parameters to help with login flow
-      provider.setCustomParameters({
-        prompt: 'select_account'  // Force account selection even when one account is available
-      });
-      
-      // First, sign in with Google using Firebase client SDK to get the ID token
+      provider.setCustomParameters({ prompt: 'select_account' });
+
       const userCredential = await signInWithPopup(auth, provider);
-      
-      // Get the ID token
       const idToken = await userCredential.user.getIdToken();
-      
-      // Verify the token on the server side
+
       const response = await axios.post('/api/auth/google', { idToken });
-      
+
       if (response.data.success) {
-        // Return the user data from the server response
         return response.data.user;
       } else {
         return rejectWithValue('Failed to authenticate with Google');
       }
     } catch (error: unknown) {
-      // Handle Firebase client errors
       if (error instanceof Error) {
-        const firebaseError = error as Error & { code?: string };
-        
-        // Special handling for popup closed by user error
-        if (firebaseError.code === 'auth/popup-closed-by-user') {
-          return rejectWithValue('auth/popup-closed-by-user: Sign-in cancelled by user.');
+        if ((error as any).code === 'auth/popup-closed-by-user') {
+          return rejectWithValue('Sign-in cancelled by user.');
         }
-        
-        return rejectWithValue(firebaseError.message || 'Failed to sign in with Google');
+        return rejectWithValue(error.message);
       }
-      
-      // Handle Axios errors
       if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<{error: string}>;
-        return rejectWithValue(axiosError.response?.data?.error || 'Failed to authenticate with Google');
+        return rejectWithValue(error.response?.data?.error || 'Failed to authenticate with Google');
       }
-      
       return rejectWithValue('Failed to sign in with Google');
     }
   }
 );
 
-export const logoutUser = createAsyncThunk(
-  'auth/logout',
-  async (_, { rejectWithValue }) => {
+// Email/Password Sign-in thunk
+export const signInWithEmailPassword = createAsyncThunk(
+  'auth/emailPasswordSignIn',
+  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      // First, call the server-side logout API
-      await axios.post('/api/auth/logout');
-      
-      // Then, sign out from Firebase client
-      await signOut(auth);
-      
-      return null;
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await userCredential.user.getIdToken();
+
+      const response = await axios.post('/api/auth/login', { idToken });
+
+      if (response.data.success) {
+        return response.data.user;
+      } else {
+        return rejectWithValue('Failed to authenticate with email/password');
+      }
     } catch (error: unknown) {
-      // Handle Firebase client errors
       if (error instanceof Error) {
-        return rejectWithValue((error as Error).message);
+        return rejectWithValue(error.message);
       }
-      
-      // Handle Axios errors
       if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<{error: string}>;
-        return rejectWithValue(axiosError.response?.data?.error || 'Failed to logout');
+        return rejectWithValue(error.response?.data?.error || 'Login failed');
       }
+      return rejectWithValue('Login failed');
+    }
+  }
+);
+
+// Email/Password Sign-up thunk
+export const signUpWithEmailPassword = createAsyncThunk(
+  'auth/emailPasswordSignUp',
+  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      return rejectWithValue('Failed to logout');
+      // Return user info directly from Firebase (no backend API needed for now)
+      return {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        photoURL: userCredential.user.photoURL,
+      };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        // Handle specific Firebase error codes
+        const firebaseError = error as any;
+        if (firebaseError.code === 'auth/email-already-in-use') {
+          return rejectWithValue('An account with this email already exists.');
+        } else if (firebaseError.code === 'auth/weak-password') {
+          return rejectWithValue('Password should be at least 6 characters.');
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          return rejectWithValue('Please enter a valid email address.');
+        }
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('Signup failed');
     }
   }
 );
@@ -119,7 +148,7 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Google Sign-in cases
+    // Google sign-in cases
     builder.addCase(signInWithGoogle.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -132,17 +161,41 @@ const authSlice = createSlice({
     });
     builder.addCase(signInWithGoogle.rejected, (state, action) => {
       state.loading = false;
-      
-      // Check if the payload has both error and message properties
-      if (action.payload && typeof action.payload === 'object' && 'error' in action.payload && 'message' in action.payload) {
-        const payload = action.payload as { error: string; message: string };
-        state.error = payload.error;
-        state.message = payload.message;
-      } else {
-        state.error = action.payload as string;
-      }
+      state.error = action.payload as string;
     });
-    
+
+    // Email/Password sign-in cases
+    builder.addCase(signInWithEmailPassword.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.message = null;
+    });
+    builder.addCase(signInWithEmailPassword.fulfilled, (state, action) => {
+      state.loading = false;
+      state.user = action.payload;
+      state.message = null;
+    });
+    builder.addCase(signInWithEmailPassword.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
+    // Email/Password sign-up cases
+    builder.addCase(signUpWithEmailPassword.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.message = null;
+    });
+    builder.addCase(signUpWithEmailPassword.fulfilled, (state, action) => {
+      state.loading = false;
+      state.user = action.payload;
+      state.message = 'Account created successfully!';
+    });
+    builder.addCase(signUpWithEmailPassword.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
     // Logout cases
     builder.addCase(logoutUser.pending, (state) => {
       state.loading = true;
@@ -159,4 +212,4 @@ const authSlice = createSlice({
 });
 
 export const { setUser, clearError, clearMessage } = authSlice.actions;
-export default authSlice.reducer; 
+export default authSlice.reducer;

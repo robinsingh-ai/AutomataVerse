@@ -39,7 +39,6 @@ const SimulatorLogo = ({ id, theme }: { id: string; theme: string }) => {
 export default function SimulatorHomePage() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
-  const [showBanner, setShowBanner] = useState(true);
   const [activeTab, setActiveTab] = useState('simulators'); // 'simulators' or 'examples'
   
   const simulators = [
@@ -148,21 +147,7 @@ export default function SimulatorHomePage() {
             Interact with powerful simulation tools for various types of automata. Design, test, and visualize computational models.
           </p>
           
-          {/* Announcement Banner */}
-          {showBanner && (
-            <div className={`max-w-3xl mx-auto p-4 rounded-lg ${isDark ? 'bg-green-900/30 text-green-200' : 'bg-green-100 text-green-800'} relative`}>
-              <span className="font-medium">Now PDA and NFA correctly handles epsilon transitions and Non-determinism.</span>
-              <button 
-                onClick={() => setShowBanner(false)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 hover:opacity-70 transition-opacity"
-                aria-label="Close banner"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          )}
+        
         </div>
         
         {/* Tabs */}
