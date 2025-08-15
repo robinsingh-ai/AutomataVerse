@@ -4,50 +4,74 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { signInWithGoogle, clearError, clearMessage } from '../../store/authSlice';
+import { signInWithGoogle, clearError, clearMessage, signUpWithEmailPassword } from '../../store/authSlice';
 
 const Signup = () => {
-  // Simple state for component errors and loading
   const [googleLoading, setGoogleLoading] = useState(false);
   const [componentError, setComponentError] = useState('');
-  
-  // Redux state
-  const dispatch = useAppDispatch();
-  const { loading, error, message } = useAppSelector(state => state.auth);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [manualLoading, setManualLoading] = useState(false);
 
-  // Clear errors/messages on mount
+  const dispatch = useAppDispatch();
+  const { loading, error, message } = useAppSelector((state) => state.auth);
+
   useEffect(() => {
     dispatch(clearError());
     dispatch(clearMessage());
   }, [dispatch]);
-  
-  // Handle Redux error updates
+
   useEffect(() => {
     if (error) {
       setComponentError(error);
     }
   }, [error]);
 
-  // Handle loading state
   useEffect(() => {
     setGoogleLoading(loading);
   }, [loading]);
 
-  // Handle Google Sign In
   const handleGoogleSignIn = async () => {
     try {
       setComponentError('');
       await dispatch(signInWithGoogle()).unwrap();
     } catch (error) {
       console.error('Google sign-in failed:', error);
-      
-      if (error && typeof error === 'string' && error.includes('auth/popup-closed-by-user')) {
-        setComponentError('Sign-in cancelled. You closed the Google login window.');
+      if (
+        error &&
+        typeof error === 'string' &&
+        error.includes('auth/popup-closed-by-user')
+      ) {
+        setComponentError(
+          'Sign-in cancelled. You closed the Google login window.'
+        );
       } else {
         setComponentError('Failed to sign in with Google. Please try again.');
       }
     }
   };
+
+ const handleManualSignup = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setComponentError("");
+
+  if (password !== confirmPassword) {
+    setComponentError("Passwords do not match.");
+    return;
+  }
+
+  try {
+    setManualLoading(true);
+    await dispatch(signUpWithEmailPassword({ email, password })).unwrap();
+  } catch (err: any) {
+    setComponentError(err || "Failed to sign up. Please try again.");
+  } finally {
+    setManualLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -155,17 +179,57 @@ const Signup = () => {
               <p>{componentError}</p>
             </div>
           )}
+           {/* Manual Signup Form */}
+          <form onSubmit={handleManualSignup} className="space-y-4 mb-8">
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            {/* Manual Sign-In/Sign-Up Button */}
+              <button
+            type="submit"
+          disabled={manualLoading}
+         className="w-full flex items-center justify-center bg-teal-600 text-white font-medium py-2 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition duration-150">
+         {manualLoading ? 'Signing up...' : 'Sign Up'}
+        </button>
           
-          <div className="space-y-6">
-            <div className="text-center">
+         <div className="text-center">
               <p className="text-gray-600 dark:text-gray-400 mb-4">Sign up with your Google account</p>
-              
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={googleLoading}
                 className="w-full flex items-center justify-center space-x-2 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 border border-gray-300 rounded-md shadow-sm px-4 py-2 transition duration-150"
               >
+
                 {googleLoading ? (
                   <svg className="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -184,6 +248,7 @@ const Signup = () => {
                 <span>{googleLoading ? 'Signing in...' : 'Continue with Google'}</span>
               </button>
             </div>
+            </form>
             
             <div className="text-center text-sm text-gray-500 dark:text-gray-400">
               By signing up, you agree to our{' '}
@@ -199,8 +264,7 @@ const Signup = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 
-export default Signup; 
+export default Signup;

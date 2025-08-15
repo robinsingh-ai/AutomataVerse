@@ -1,19 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { auth } from "../../../lib/firebase";
+import { clearError, clearMessage, signInWithGoogle } from '../../store/authSlice';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { signInWithGoogle, clearError, clearMessage } from '../../store/authSlice';
 
 const Login = () => {
   // Simple state for component errors and loading
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [manualLoading, setManualLoading] = useState(false); 
   const [componentError, setComponentError] = useState('');
   
   // Redux state
   const dispatch = useAppDispatch();
   const { loading, error, message } = useAppSelector(state => state.auth);
+  
 
   // Clear errors/messages on mount
   useEffect(() => {
@@ -46,6 +52,28 @@ const Login = () => {
       } else {
         setComponentError('Failed to sign in with Google. Please try again.');
       }
+    }
+  };
+    // Email/password login
+  const handleEmailPasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setComponentError('');
+    try {
+      setManualLoading(true);
+      await signInWithEmailAndPassword(auth, email, password);
+      // ✅ You can redirect or show success message here
+      console.log('Login successful');
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      if (err.code === 'auth/user-not-found') {
+        setComponentError('No account found with this email.');
+      } else if (err.code === 'auth/wrong-password') {
+        setComponentError('Incorrect password.');
+      } else {
+        setComponentError('Failed to sign in. Please try again.');
+      }
+    } finally {
+      setManualLoading(false);
     }
   };
 
@@ -155,6 +183,30 @@ const Login = () => {
               <p>{componentError}</p>
             </div>
           )}
+          <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border p-2 w-full rounded mb-3"
+          required
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 w-full rounded mb-3"
+          required
+        />
+           <button
+            type="submit"
+          onClick={handleEmailPasswordLogin}
+          disabled={manualLoading}
+    className="w-full flex items-center justify-center bg-teal-600 text-white font-medium py-2 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition duration-150">
+    {manualLoading ? 'Signing up...' : 'Sign In'}
+  </button>
           
           <div className="space-y-6">
             <div className="text-center">
@@ -194,7 +246,6 @@ const Login = () => {
               <a href="#" className="text-teal-600 hover:text-teal-500">
                 Privacy Policy
               </a>
-              .
             </div>
           </div>
         </div>
