@@ -236,7 +236,8 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
   return (
     <nav className={`fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-white/30 dark:bg-gray-900/30 border-b border-white/20 dark:border-gray-800/40 shadow-md transition-colors duration-300 ${currentTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between items-center h-16">
+          {/* Left Section: Logo */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center touch-target">
               <div className="w-auto relative">
@@ -256,32 +257,30 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             </Link>
           </div>
 
-          <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-3">
+          {/* Middle Section: Navigation Links */}
+          <div className="hidden lg:flex lg:items-center lg:space-x-1">
             <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Simulators
             </Link>
-
             <Link href="/learn" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Learn
             </Link>
-
             <Link href="/demo" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Demo
             </Link>
-
             <Link href="/#features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Features
             </Link>
+          </div>
 
-            {/* Auth links with proper spacing */}
-            <div className="flex items-center space-x-3 ml-4">
+          {/* Right Section: Auth and Theme Toggle */}
+          <div className="hidden lg:flex lg:items-center lg:space-x-3">
+            <div className="flex items-center space-x-3">
               {renderAuthLinks()}
             </div>
-
-            {/* Theme toggle button */}
             <button
               onClick={() => onThemeChange(currentTheme === 'dark' ? 'light' : 'dark')}
-              className={`flex items-center justify-center p-2 rounded-full touch-target ml-3 ${
+              className={`flex items-center justify-center p-2 rounded-full touch-target ${
                 currentTheme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
               } hover:text-white transition-colors hover:bg-teal-500`}
               aria-label="Toggle dark mode"
