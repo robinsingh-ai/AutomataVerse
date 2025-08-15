@@ -1,11 +1,10 @@
-'use client';
+ import React from "react"
+import AutomataSimulator from "../../shared/components/AutomataSimulator";
 
-import AutomataSimulator from './AutomataSimulator';
-
-export default function DFASimulatorPage() {
+export default function Page() {
   return (
-    <div className="w-full h-screen">
+    <main style={{ height: "100vh", width: "100%" }}>
       <AutomataSimulator />
-    </div>
+    </main>
   );
 }
