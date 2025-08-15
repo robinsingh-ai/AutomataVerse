@@ -96,7 +96,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
     if (!isClient) {
       return (
         <>
-          <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500 touch-target">
+          <Link href="/signup" className="px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500 touch-target">
             Sign Up
           </Link>
           <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors touch-target" style={{ backgroundColor: themeColor }}>
@@ -109,7 +109,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
     // After hydration, render based on auth state
     return user ? (
       <>
-        <Link href="/profile" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
+        <Link href="/profile" className="px-4 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
           Profile
         </Link>
 
@@ -123,7 +123,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
       </>
     ) : (
       <>
-        <Link href="/signup" className="ml-2 px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500 touch-target">
+        <Link href="/signup" className="px-4 py-2 rounded-md text-sm font-medium border border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900 transition-colors text-teal-500 touch-target">
           Sign Up
         </Link>
         <Link href="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-opacity-90 transition-colors touch-target" style={{ backgroundColor: themeColor }}>
@@ -256,7 +256,7 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             </Link>
           </div>
 
-          <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
+          <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-3">
             <Link href="/simulator" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Simulators
             </Link>
@@ -273,14 +273,17 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
               Features
             </Link>
 
-            {/* Use the client-side only auth links function */}
-            {renderAuthLinks()}
+            {/* Auth links with proper spacing */}
+            <div className="flex items-center space-x-3 ml-4">
+              {renderAuthLinks()}
+            </div>
 
             {/* Theme toggle button */}
             <button
               onClick={() => onThemeChange(currentTheme === 'dark' ? 'light' : 'dark')}
-              className={`flex items-center justify-center p-2 rounded-full touch-target ${currentTheme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
-                } hover:text-white transition-colors hover:bg-teal-500`}
+              className={`flex items-center justify-center p-2 rounded-full touch-target ml-3 ${
+                currentTheme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
+              } hover:text-white transition-colors hover:bg-teal-500`}
               aria-label="Toggle dark mode"
             >
               {currentTheme === 'dark' ? (
