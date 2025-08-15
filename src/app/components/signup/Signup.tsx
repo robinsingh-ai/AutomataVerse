@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { signInWithGoogle, clearError, clearMessage } from '../../store/authSlice';
-import { signInWithEmailPassword } from "../../store/authSlice";
+import { signInWithGoogle, clearError, clearMessage, signUpWithEmailPassword } from '../../store/authSlice';
 
 const Signup = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -18,10 +17,6 @@ const Signup = () => {
 
   const dispatch = useAppDispatch();
   const { loading, error, message } = useAppSelector((state) => state.auth);
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    dispatch(signInWithEmailPassword({ email, password }));
-  };
 
   useEffect(() => {
     dispatch(clearError());
@@ -69,7 +64,7 @@ const Signup = () => {
 
   try {
     setManualLoading(true);
-    await dispatch(signInWithEmailPassword({ email, password })).unwrap();
+    await dispatch(signUpWithEmailPassword({ email, password })).unwrap();
   } catch (err: any) {
     setComponentError(err || "Failed to sign up. Please try again.");
   } finally {
@@ -223,7 +218,7 @@ const Signup = () => {
             type="submit"
           disabled={manualLoading}
          className="w-full flex items-center justify-center bg-teal-600 text-white font-medium py-2 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition duration-150">
-         {manualLoading ? 'Signing up...' : 'Sign In'}
+         {manualLoading ? 'Signing up...' : 'Sign Up'}
         </button>
           
          <div className="text-center">

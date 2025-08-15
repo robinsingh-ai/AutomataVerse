@@ -28,9 +28,6 @@ const auth = getAuth(app);
 // ✅ Helper to get current user
 const getCurrentUser = () => auth.currentUser;
 
-// ✅ Helper to get current user
-const getCurrentUser = () => auth.currentUser;
-
 // ✅ Google provider
 const googleProvider = new GoogleAuthProvider();
 

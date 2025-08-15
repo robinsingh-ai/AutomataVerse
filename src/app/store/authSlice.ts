@@ -3,7 +3,8 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import axios, { AxiosError } from 'axios';
@@ -100,6 +101,38 @@ export const signInWithEmailPassword = createAsyncThunk(
   }
 );
 
+// Email/Password Sign-up thunk
+export const signUpWithEmailPassword = createAsyncThunk(
+  'auth/emailPasswordSignUp',
+  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Return user info directly from Firebase (no backend API needed for now)
+      return {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        photoURL: userCredential.user.photoURL,
+      };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        // Handle specific Firebase error codes
+        const firebaseError = error as any;
+        if (firebaseError.code === 'auth/email-already-in-use') {
+          return rejectWithValue('An account with this email already exists.');
+        } else if (firebaseError.code === 'auth/weak-password') {
+          return rejectWithValue('Password should be at least 6 characters.');
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          return rejectWithValue('Please enter a valid email address.');
+        }
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('Signup failed');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -143,6 +176,22 @@ const authSlice = createSlice({
       state.message = null;
     });
     builder.addCase(signInWithEmailPassword.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
+    // Email/Password sign-up cases
+    builder.addCase(signUpWithEmailPassword.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.message = null;
+    });
+    builder.addCase(signUpWithEmailPassword.fulfilled, (state, action) => {
+      state.loading = false;
+      state.user = action.payload;
+      state.message = 'Account created successfully!';
+    });
+    builder.addCase(signUpWithEmailPassword.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as string;
     });
