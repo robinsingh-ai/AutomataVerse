@@ -268,6 +268,9 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
             <Link href="/demo" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Demo
             </Link>
+            <Link href="/about" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
+              About
+            </Link>
             <Link href="/#features" className="px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-teal-500 touch-target">
               Features
             </Link>
@@ -399,6 +402,22 @@ const Navbar: React.FC<NavbarProps> = ({ onThemeChange, currentTheme }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.5a1.5 1.5 0 011.5 1.5V12a1.5 1.5 0 01-1.5 1.5H9m3.5-2v2m0 0V13a1.5 1.5 0 011.5-1.5H15m-1.5 1.5h1.5" />
                 </svg>
                 Demo
+              </span>
+            </Link>
+
+            <Link
+              href="/about"
+              className={`block px-4 py-3 rounded-lg text-base font-medium touch-target transition-all duration-200 ${currentTheme === 'dark'
+                ? 'text-white hover:text-teal-400 hover:bg-gray-800/50'
+                : 'text-gray-900 hover:text-teal-600 hover:bg-gray-100/50'
+                }`}
+              onClick={closeMobileMenu}
+            >
+              <span className="flex items-center">
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                About
               </span>
             </Link>
 
