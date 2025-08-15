@@ -12,7 +12,6 @@ export default function Home() {
   const { isMobile, isSmallMobile } = useResponsive();
   const isDark = theme === "dark";
   const themeColor = "#70D9C2";
-  const [showBanner, setShowBanner] = useState(true);
 
   return (
     <div
@@ -54,37 +53,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <div className="pt-16">
-        {/* Announcement Banner */}
-        {showBanner && (
-          <div className="bg-red-500 text-white p-3 relative mb-6 mx-4 sm:mx-6 lg:mx-8 rounded">
-            <div className="max-w-7xl mx-auto px-4 text-center">
-              <span
-                className={`font-medium ${isMobile ? "text-sm" : "text-base"}`}
-              >
-                Added new problem sets for DFA in learning section
-              </span>
-
-              <button
-                onClick={() => setShowBanner(false)}
-                className="absolute right-4 top-3 text-white hover:text-gray-200 touch-target"
-                aria-label="Close banner"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
+       
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 flex flex-wrap lg:flex-nowrap items-center">
           <div className="w-full lg:w-1/2 lg:pr-8">
